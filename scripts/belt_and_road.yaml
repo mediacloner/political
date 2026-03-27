@@ -1,0 +1,12 @@
+# Debate Script: Belt and Road vs Build Back Better World
+topic: "Is China's Belt and Road Initiative or the US-led Build Back Better World a better development model for the Global South?"
+
+rounds: 8
+time_limit_minutes: 25
+research: true
+podcast: false
+
+personas:
+  us: analyst          # Dr. Sarah Chen — fiscal/budget analysis
+  china: enterprise_rep  # Chairman Liu Peng — execution track record
+  judge: economist     # Dr. Marie Leclerc — trade economics

@@ -56,6 +56,12 @@ def parse_args():
         help="China delegation persona (default: director)",
     )
     p.add_argument(
+        "--eu-persona",
+        choices=["strategist", "hawk", "economist"],
+        default=None,
+        help="EU delegation persona (default: strategist)",
+    )
+    p.add_argument(
         "--podcast",
         action="store_true",
         help="Produce audio podcast after debate (requires Fish Speech)",
@@ -128,6 +134,7 @@ def main():
         personas=personas,
         us_persona=args.us_persona,
         china_persona=args.china_persona,
+        eu_persona=args.eu_persona,
     )
 
     state = orchestrator.run_debate(

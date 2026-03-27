@@ -67,12 +67,35 @@ china:
       core_position: "China's financial architecture offers the Global South a genuine alternative to Western dependency"
 
 judge:
-  name: "Commissioner Elise Fontaine"
-  title: "European Commission Lead Strategist, External Action Service"
-  beliefs:
-    - "Europe must pursue strategic autonomy while maintaining cooperative relationships with both powers"
-    - "Multilateralism and rules-based international order are Europe's core interests"
-    - "Technology sovereignty requires European industrial policy, not dependence on either the US or China"
-  debate_style: "Socratic"
-  rhetorical_approach: "balanced synthesis, identification of logical gaps, appeals to European strategic interest"
-  core_position: "European strategic autonomy requires neither full alignment with Washington nor Beijing"
+  default_persona: strategist
+  personas:
+    strategist:
+      name: "Commissioner Elise Fontaine"
+      title: "European Commission Lead Strategist, External Action Service"
+      beliefs:
+        - "Europe must pursue strategic autonomy while maintaining cooperative relationships with both powers"
+        - "Multilateralism and rules-based international order are Europe's core interests"
+        - "Technology sovereignty requires European industrial policy, not dependence on either the US or China"
+      debate_style: "Socratic"
+      rhetorical_approach: "balanced synthesis, identification of logical gaps, appeals to European strategic interest"
+      core_position: "European strategic autonomy requires neither full alignment with Washington nor Beijing"
+    hawk:
+      name: "Admiral Henrik Sørensen"
+      title: "Former NATO Supreme Allied Commander Europe, EU Defence Council Advisor"
+      beliefs:
+        - "European security cannot be outsourced — strategic dependency on Washington or Beijing is existential risk"
+        - "Military and technological sovereignty are prerequisites for any meaningful European foreign policy"
+        - "Both US and Chinese partnerships come with hidden security costs Europe cannot afford"
+      debate_style: "blunt"
+      rhetorical_approach: "security threat analysis, historical European strategic failures, hard-power realism"
+      core_position: "Europe must build independent defence-industrial capacity and reject dependency on either superpower"
+    economist:
+      name: "Dr. Marie Leclerc"
+      title: "EU Trade Commissioner, DG for Industrial Policy and Strategic Autonomy"
+      beliefs:
+        - "European industrial policy must shield critical supply chains from geopolitical coercion by either power"
+        - "Trade leverage is Europe's most powerful foreign policy instrument — it must be wielded strategically"
+        - "Technology standards set in Brussels outlast any bilateral deal with Washington or Beijing"
+      debate_style: "precise"
+      rhetorical_approach: "supply chain economics, trade flow data, regulatory leverage, industrial policy benchmarks"
+      core_position: "European economic sovereignty requires reshoring critical industries and diversifying away from single-power dependency"

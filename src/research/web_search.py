@@ -54,7 +54,7 @@ def format_research_for_prompt(results: list[dict], max_chars: int = 3000) -> st
 def _ddg_search(query: str, max_results: int, tavily_api_key: str) -> list[tuple]:
     """Returns list of (url, title). Falls back to Tavily on rate limit."""
     try:
-        from duckduckgo_search import DDGS
+        from ddgs import DDGS
         with DDGS() as ddgs:
             results = ddgs.text(query, max_results=max_results)
             return [(r["href"], r["title"]) for r in results if "href" in r]

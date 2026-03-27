@@ -1,0 +1,12 @@
+# Debate Script: Global AI Regulation
+topic: "Should there be a binding international treaty regulating frontier AI development?"
+
+rounds: 8
+time_limit_minutes: 20
+research: true
+podcast: true
+
+personas:
+  us: lobbyist         # Director James Harrington — market perspective
+  china: economist     # Professor Zhang Yifei — development perspective
+  judge: economist     # Dr. Marie Leclerc — trade/industrial policy

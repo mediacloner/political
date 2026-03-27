@@ -2,8 +2,10 @@
 
 from src.agents.base_agent import BaseAgent
 from src.prompts.templates import (
+    EU_DEBATER_SYSTEM,
     JUDGE_QUESTION,
     JUDGE_VERDICT,
+    build_beliefs_block,
     build_debate_state_block,
     build_recent_history_block,
     build_compressed_past_block,
@@ -14,9 +16,44 @@ class EUJudge(BaseAgent):
     role = "judge"
     agent_key = "judge"
 
-    def __init__(self, personas: dict, model_cfg: dict, topic: str):
-        persona = personas["judge"]
+    def __init__(self, personas: dict, model_cfg: dict, topic: str, persona_name: str = None):
+        judge_cfg = personas["judge"]
+        persona_name = persona_name or judge_cfg["default_persona"]
+        persona = judge_cfg["personas"][persona_name]
         super().__init__(persona, model_cfg, topic)
+        self.agent_name = persona_name
+
+    def build_debater_system_prompt(self) -> str:
+        """System prompt for EU as active debater (during rounds)."""
+        return EU_DEBATER_SYSTEM.format(
+            name=self.name,
+            title=self.title,
+            beliefs_block=build_beliefs_block(self.beliefs),
+            debate_style=self.debate_style,
+            rhetorical_approach=self.rhetorical_approach,
+            core_position=self.core_position,
+            topic=self.topic,
+        )
+
+    def get_turn_objective(self, round_num: int) -> str:
+        """Turn objective for EU as active debater."""
+        if round_num == 0:
+            return (
+                "State the European opening position on this topic. "
+                "Identify where both the US and Chinese framings conflict with European "
+                "strategic interests. Propose a European alternative framework."
+            )
+        if round_num % 4 == 0:
+            return (
+                "European strategic challenge: identify the single argument from either side "
+                "that most threatens European interests and directly dismantle it. "
+                "Propose a distinctly European solution that neither party has considered."
+            )
+        return (
+            "Advance the European position. Attack the weakest claim made by either the US or China "
+            "this round with specific evidence. Identify at least one perspective both sides are "
+            "ignoring that matters to European interests."
+        )
 
     def build_question_messages(self, state) -> list[dict]:
         """Build messages for the inter-round question turn."""

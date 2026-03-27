@@ -135,6 +135,32 @@ class DebateState:
 
         return "\n".join(lines)
 
+    @staticmethod
+    def from_dict(d: dict) -> "DebateState":
+        state = DebateState(topic=d["topic"])
+        state.round_num = d.get("round_num", 0)
+        state.finished = d.get("finished", False)
+        state.finish_reason = d.get("finish_reason", "")
+        state.verdict = d.get("verdict", "")
+        state.us_claims = d.get("us_claims", [])
+        state.china_claims = d.get("china_claims", [])
+        state.points_of_agreement = d.get("points_of_agreement", [])
+        state.points_of_contention = d.get("points_of_contention", [])
+        state.evidence_cited = d.get("evidence_cited", {"us": [], "china": []})
+        state.summaries = d.get("summaries", {})
+        for t in d.get("turns", []):
+            turn = Turn(
+                agent=t["agent"],
+                round_num=t["round"],
+                content=t["content"],
+                thinking=t.get("thinking", ""),
+                timestamp=t.get("timestamp", time.time()),
+                quality_score=t.get("quality_score"),
+                is_repetitive=t.get("is_repetitive", False),
+            )
+            state.turns.append(turn)
+        return state
+
     def save(self, output_dir: str) -> None:
         path = Path(output_dir)
         path.mkdir(parents=True, exist_ok=True)

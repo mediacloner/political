@@ -14,6 +14,7 @@ Fish Speech must be installed separately:
 import json
 import time
 from pathlib import Path
+from typing import Optional
 from src.context.debate_state import DebateState
 
 
@@ -45,7 +46,8 @@ class PodcastProducer:
         self.personas = personas
         self._fish_available = None
 
-    def produce(self, state: DebateState, tabby_client, voice_refs: dict = None) -> Optional[Path]:
+    def produce(self, state: DebateState, tabby_client, voice_refs: dict = None,
+                source_transcript: str = "") -> Optional[Path]:
         """
         Full pipeline: transcript → script → audio.
         voice_refs: {"us": "/path/to/ref.wav", "china": "...", "judge": "..."}
@@ -67,7 +69,7 @@ class PodcastProducer:
             print("  [podcast] install: git clone https://github.com/fishaudio/fish-speech && pip install -e fish-speech/")
             return script_path
 
-        return self._generate_audio(script, voice_refs or {})
+        return self._generate_audio(script, voice_refs or {}, source_transcript)
 
     def _generate_script(self, state: DebateState, tabby_client) -> list[dict]:
         prompt = SCRIPT_PROMPT.format(
@@ -96,8 +98,9 @@ class PodcastProducer:
                 self._fish_available = False
         return self._fish_available
 
-    def _generate_audio(self, script: list[dict], voice_refs: dict) -> Optional[Path]:
-        """Generate audio for each turn and concatenate."""
+    def _generate_audio(self, script: list[dict], voice_refs: dict,
+                        source_transcript: str = "") -> Optional[Path]:
+        """Generate audio per turn, record timing manifest, concatenate."""
         try:
             import subprocess
             import wave
@@ -109,6 +112,9 @@ class PodcastProducer:
             }
 
             segment_paths = []
+            manifest_segments = []
+            current_time = 0.0
+
             for i, turn in enumerate(script):
                 speaker = turn.get("speaker", "EU_ANALYST")
                 agent_key = speaker_map.get(speaker, "judge")
@@ -116,12 +122,24 @@ class PodcastProducer:
                 ref_wav = voice_refs.get(agent_key, "")
 
                 out_path = self.output_dir / f"seg_{i:04d}.wav"
-                cmd = ["python", "-m", "fish_speech.cli", "tts", "--text", text, "--output", str(out_path)]
+                cmd = ["python", "-m", "fish_speech.cli", "tts",
+                       "--text", text, "--output", str(out_path)]
                 if ref_wav:
                     cmd += ["--reference-audio", ref_wav]
 
                 result = subprocess.run(cmd, capture_output=True, timeout=60)
                 if result.returncode == 0 and out_path.exists():
+                    with wave.open(str(out_path), "rb") as wf:
+                        duration = wf.getnframes() / wf.getframerate()
+                    manifest_segments.append({
+                        "index": i,
+                        "speaker": speaker,
+                        "agent": agent_key,
+                        "text": text,
+                        "start": round(current_time, 3),
+                        "end": round(current_time + duration, 3),
+                    })
+                    current_time += duration
                     segment_paths.append(out_path)
                 else:
                     print(f"  [podcast] segment {i} failed: {result.stderr.decode()[:100]}")
@@ -129,9 +147,27 @@ class PodcastProducer:
             if not segment_paths:
                 return None
 
-            final_path = self.output_dir / f"podcast_{int(time.time())}.wav"
+            stem = int(time.time())
+            final_path = self.output_dir / f"podcast_{stem}.wav"
             self._concatenate_wav(segment_paths, final_path)
-            print(f"  [podcast] final audio: {final_path}")
+
+            # Save timing manifest alongside the audio
+            manifest = {
+                "audio_file": final_path.name,
+                "source_transcript": source_transcript,
+                "total_duration": round(current_time, 3),
+                "segments": manifest_segments,
+            }
+            manifest_path = self.output_dir / f"podcast_{stem}.manifest.json"
+            with open(manifest_path, "w") as f:
+                json.dump(manifest, f, indent=2)
+
+            # Clean up per-segment files
+            for p in segment_paths:
+                p.unlink(missing_ok=True)
+
+            print(f"  [podcast] audio: {final_path}")
+            print(f"  [podcast] manifest: {manifest_path}")
             return final_path
 
         except Exception as e:

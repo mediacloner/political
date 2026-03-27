@@ -24,6 +24,7 @@ from src.evaluation.repetition_detector import RepetitionDetector
 from src.evaluation.quality_scorer import QualityScorer
 from src.rag.retriever import RAGRetriever
 from src.tts.podcast import PodcastProducer
+from src import live_status
 
 
 def load_config(config_path: str = "config/settings.yaml") -> dict:
@@ -43,6 +44,7 @@ class Orchestrator:
         personas: dict,
         us_persona: str = None,
         china_persona: str = None,
+        eu_persona: str = None,
     ):
         self.config = config
         self.personas = personas
@@ -65,6 +67,7 @@ class Orchestrator:
         self._judge: Optional[EUJudge] = None
         self._us_persona = us_persona
         self._china_persona = china_persona
+        self._eu_persona = eu_persona
 
         self._ctx_manager: Optional[ContextManager] = None
         self._repetition = RepetitionDetector(
@@ -108,13 +111,15 @@ class Orchestrator:
         self._repetition.reset()
 
         start_time = time.time()
+        live_status.publish_start(topic, max_rounds, time_limit_minutes or self.debate_cfg["default_time_limit_minutes"])
 
         # ------ Phase 1: Research & Initial Proposals ------------------
-        print("\n--- Phase 1: Research & Initial Proposals ---\n")
+        print("\n--- Phase 1: Research & Initial Proposals (US, China, EU) ---\n")
         self._phase_research(state)
 
-        # ------ Phase 2: Debate Loop -----------------------------------
-        print("\n--- Phase 2: Debate Loop ---\n")
+        # ------ Phase 2: Three-Way Debate Loop -------------------------
+        print("\n--- Phase 2: Three-Way Debate (US vs China vs EU) ---\n")
+        live_status.publish_phase("debate")
         for round_num in range(1, max_rounds + 1):
             elapsed = time.time() - start_time
             if elapsed >= time_limit * 0.9:  # 90% of time → stop loop
@@ -123,28 +128,32 @@ class Orchestrator:
                 break
 
             state.round_num = round_num
+            live_status.publish_phase("debate", round_num)
             print(f"\n  === Round {round_num} ===")
 
-            # Judge asks a targeted question
-            question = self._judge_question_turn(state)
+            devil = self._should_inject_devil(round_num, state)
+            extra = self._devil_advocate_injection(round_num) if devil else ""
 
-            # US responds
+            # US argues
             self._debater_turn(
                 agent=self._us_agent,
                 agent_key="us",
                 state=state,
                 turn_objective=self._us_agent.get_turn_objective(round_num),
-                extra=self._devil_advocate_injection(round_num) if self._should_inject_devil(round_num, state) else "",
+                extra=extra,
             )
 
-            # China responds
+            # China argues (sees US argument)
             self._debater_turn(
                 agent=self._china_agent,
                 agent_key="china",
                 state=state,
                 turn_objective=self._china_agent.get_turn_objective(round_num),
-                extra=self._devil_advocate_injection(round_num) if self._should_inject_devil(round_num, state) else "",
+                extra=extra,
             )
+
+            # EU argues as active debater (sees US and China arguments)
+            self._eu_debater_turn(state, round_num, extra=extra)
 
             # Post-round: summarize, score, check termination
             self._ctx_manager.maybe_summarize(state)
@@ -170,6 +179,7 @@ class Orchestrator:
         state.finished = True
 
         # ------ Phase 3: Verdict ---------------------------------------
+        live_status.publish_phase("verdict", state.round_num)
         print("\n--- Phase 3: Final Verdict ---\n")
         self._verdict_turn(state)
 
@@ -183,6 +193,8 @@ class Orchestrator:
         # Save outputs
         if self.config["output"]["save_debate_state"]:
             state.save(self.config["output"]["transcripts_dir"])
+
+        live_status.publish_done(state.finish_reason, state.round_num)
 
         print(f"\n{'='*60}")
         print(f"Debate complete. Reason: {state.finish_reason}")
@@ -199,12 +211,12 @@ class Orchestrator:
     # ------------------------------------------------------------------
 
     def _phase_research(self, state: DebateState) -> None:
-        """Phase 1: Each debater researches and stakes out an opening position."""
+        """Phase 1: All three agents research and stake out opening positions."""
         if not self.research_cfg["enabled"]:
             print("  [research] disabled in config, skipping")
             return
 
-        for agent_key, agent in [("us", self._us_agent), ("china", self._china_agent)]:
+        for agent_key, agent in [("us", self._us_agent), ("china", self._china_agent), ("judge", self._judge)]:
             model_cfg = self.model_cfgs[agent_key]
             self._swap(agent_key)
 
@@ -214,7 +226,9 @@ class Orchestrator:
             objective = agent.get_turn_objective(0)
             research_block = format_research_for_prompt(research_results)
 
-            system = agent.build_system_prompt()
+            # EU uses debater system prompt during the debate (not moderator prompt)
+            system = (agent.build_debater_system_prompt()
+                      if agent_key == "judge" else agent.build_system_prompt())
             if research_block:
                 system += f"\n\n{research_block}"
 
@@ -284,6 +298,34 @@ class Orchestrator:
         for e in evidence:
             state.add_evidence(agent_key, e)
 
+    def _eu_debater_turn(self, state: DebateState, round_num: int, extra: str = "") -> None:
+        """EU Judge debates as an active participant rather than moderator."""
+        model_cfg = self.model_cfgs["judge"]
+        self._swap("judge")
+
+        system = self._judge.build_debater_system_prompt()
+        messages = self._ctx_manager.build_debater_turn_messages(
+            system_prompt=system,
+            state=state,
+            turn_objective=self._judge.get_turn_objective(round_num),
+            extra_instruction=extra,
+        )
+
+        raw = self.client.chat(
+            messages,
+            temperature=0.75,  # warmer than verdict mode (0.4) for active debate
+            top_p=model_cfg.get("top_p", 0.9),
+            max_tokens=model_cfg["max_tokens"],
+        )
+
+        argument, thinking = self._judge.parse_response(raw)
+        turn = state.add_turn("judge", argument, thinking)
+
+        is_rep, sim = self._repetition.check("judge", argument)
+        turn.is_repetitive = is_rep
+        flag = " [REPETITIVE]" if is_rep else ""
+        print(f"  [eu]    r{round_num}: {argument[:100]}...{flag}", flush=True)
+
     def _judge_question_turn(self, state: DebateState) -> str:
         """Judge generates a targeted question for the weakest argument."""
         self._load_judge_model()
@@ -332,6 +374,9 @@ class Orchestrator:
     # ------------------------------------------------------------------
 
     def _swap(self, agent_key: str) -> None:
+        status = live_status.read()
+        phase = status.get("phase", "debate") if status else "debate"
+        live_status.publish_phase(phase, agent=agent_key)
         model_cfg = self.model_cfgs[agent_key]
         self.client.swap_model(
             model_name=model_cfg["name"],
@@ -349,7 +394,8 @@ class Orchestrator:
     def _run_research(self, topic: str, agent) -> list[dict]:
         """Generate search queries and fetch results for an agent."""
         # Build query from topic + agent perspective
-        perspective = "US" if hasattr(agent, "agent_key") and agent.agent_key == "us" else "Chinese"
+        _perspective_map = {"us": "US", "china": "Chinese", "judge": "European"}
+        perspective = _perspective_map.get(getattr(agent, "agent_key", ""), "international")
         queries = [
             f"{topic} {perspective} perspective 2025 2026",
             f"{topic} latest developments evidence",
@@ -392,4 +438,4 @@ class Orchestrator:
     def _init_agents(self, topic: str) -> None:
         self._us_agent = USAgent(self.personas, self.model_cfgs["us"], topic, self._us_persona)
         self._china_agent = ChinaAgent(self.personas, self.model_cfgs["china"], topic, self._china_persona)
-        self._judge = EUJudge(self.personas, self.model_cfgs["judge"], topic)
+        self._judge = EUJudge(self.personas, self.model_cfgs["judge"], topic, self._eu_persona)

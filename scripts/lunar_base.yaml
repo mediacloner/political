@@ -1,0 +1,14 @@
+# Debate Script: Lunar Base Partnership
+# Run from menu option [7] or: python menu.py --script scripts/lunar_base.yaml
+
+topic: "Should the EU partner with NASA or CNSA for a lunar base?"
+
+rounds: 8
+time_limit_minutes: 20
+research: true
+podcast: false
+
+personas:
+  us: strategist       # Ambassador Victoria Marsh
+  china: director      # Director-General Wei Changming
+  judge: strategist    # Commissioner Elise Fontaine

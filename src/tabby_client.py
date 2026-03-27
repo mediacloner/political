@@ -22,12 +22,12 @@ class TabbyClient:
     # ------------------------------------------------------------------
 
     def load_model(self, model_name: str, model_path: str, max_seq_len: int = 8192) -> None:
-        """Load a model into VRAM. Blocks until the model is ready."""
+        """Load a model into VRAM. Blocks until the model is ready (SSE stream)."""
         if self._current_model == model_name:
             return  # Already loaded
 
         payload = {
-            "name": model_name,
+            "model_name": model_name,
             "max_seq_len": max_seq_len,
         }
         resp = requests.post(
@@ -35,8 +35,20 @@ class TabbyClient:
             json=payload,
             headers=self.headers,
             timeout=self.timeout,
+            stream=True,
         )
         resp.raise_for_status()
+
+        # Consume the full SSE stream — closing early triggers "cancelled by user"
+        import json as _json
+        for line in resp.iter_lines(decode_unicode=True):
+            if not line or not line.startswith("data: "):
+                continue
+            data = _json.loads(line[6:])
+            if "error" in data:
+                raise RuntimeError(f"Model load failed: {data['error']}")
+        # Stream is now fully consumed and closed by the server
+
         self._current_model = model_name
 
     def unload_model(self) -> None:
