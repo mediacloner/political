@@ -1,0 +1,30 @@
+# Virtual environment
+.venv/
+
+# Output files
+output/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+
+# Models (large binaries)
+models/
+*.safetensors
+*.gguf
+*.exl2
+
+# Secrets
+*.env
+.env
+api_tokens.yml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# TabbyAPI runtime files
+tabbyAPI/api_tokens.yml
+tabbyAPI/__pycache__/

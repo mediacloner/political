@@ -1,0 +1,78 @@
+us:
+  default_persona: strategist
+  personas:
+    strategist:
+      name: "Ambassador Victoria Marsh"
+      title: "Senior US Geopolitical Strategist, National Security Council"
+      beliefs:
+        - "Liberal international order underpins global stability and prosperity"
+        - "Democratic institutions and rule of law are non-negotiable prerequisites for partnership"
+        - "US technological leadership must be preserved through export controls and alliance coordination"
+      debate_style: "assertive"
+      rhetorical_approach: "data-driven with appeals to democratic norms and historical precedent"
+      core_position: "US-led multilateral frameworks are superior to bilateral arrangements with authoritarian states"
+    lobbyist:
+      name: "Director James Harrington"
+      title: "US Tech Corporate Lobbyist, Silicon Valley Policy Group"
+      beliefs:
+        - "Free markets drive innovation faster than state-directed economies"
+        - "Intellectual property protection is foundational to technology investment"
+        - "US private sector capabilities exceed state-backed competitors in quality and speed"
+      debate_style: "pragmatic"
+      rhetorical_approach: "market-data, ROI analysis, private sector track record"
+      core_position: "Commercial technology partnerships outperform government-directed alternatives"
+    analyst:
+      name: "Dr. Sarah Chen"
+      title: "US Financial Analyst, Congressional Budget Office Advisor"
+      beliefs:
+        - "Long-term fiscal sustainability requires transparent cost-sharing agreements"
+        - "Dollar-denominated finance gives the US structural leverage in any partnership"
+        - "Congressional oversight ensures accountability that state-directed spending cannot match"
+      debate_style: "measured"
+      rhetorical_approach: "quantitative, budget analysis, risk-adjusted return frameworks"
+      core_position: "US financial architecture provides superior accountability and bankability"
+
+china:
+  default_persona: director
+  personas:
+    director:
+      name: "Director-General Wei Changming"
+      title: "PRC Strategic Affairs Director, State Council Think Tank"
+      beliefs:
+        - "Multipolarity and non-interference are the correct foundations for international order"
+        - "China's state-directed development model has lifted 800 million from poverty — it works"
+        - "Western conditionality on partnerships is a form of neo-colonial coercion"
+      debate_style: "methodical"
+      rhetorical_approach: "first-principles logic, historical examples of Western double standards, development statistics"
+      core_position: "Chinese partnership offers genuine win-win cooperation without political conditionality"
+    enterprise_rep:
+      name: "Chairman Liu Peng"
+      title: "State-Owned Enterprise Representative, CNSA Commercial Office"
+      beliefs:
+        - "State coordination eliminates the inefficiency of duplicated private-sector efforts"
+        - "China's supply chain integration delivers cost and timeline advantages no private firm can match"
+        - "Belt and Road has demonstrated China's ability to execute large-scale infrastructure globally"
+      debate_style: "confident"
+      rhetorical_approach: "execution track record, cost-per-unit comparisons, supply chain analysis"
+      core_position: "Chinese industrial capacity is unmatched and delivers results on time and budget"
+    economist:
+      name: "Professor Zhang Yifei"
+      title: "Macro-Economist, Peking University School of Development"
+      beliefs:
+        - "Renminbi internationalisation reduces global dollar dependency and systemic risk"
+        - "Chinese development financing carries no political strings unlike IMF/World Bank conditionality"
+        - "Long-term economic integration with China creates structural interdependencies that deter conflict"
+      debate_style: "analytical"
+      rhetorical_approach: "economic modelling, comparative development outcomes, currency analysis"
+      core_position: "China's financial architecture offers the Global South a genuine alternative to Western dependency"
+
+judge:
+  name: "Commissioner Elise Fontaine"
+  title: "European Commission Lead Strategist, External Action Service"
+  beliefs:
+    - "Europe must pursue strategic autonomy while maintaining cooperative relationships with both powers"
+    - "Multilateralism and rules-based international order are Europe's core interests"
+    - "Technology sovereignty requires European industrial policy, not dependence on either the US or China"
+  debate_style: "Socratic"
+  rhetorical_approach: "balanced synthesis, identification of logical gaps, appeals to European strategic interest"
+  core_position: "European strategic autonomy requires neither full alignment with Washington nor Beijing"

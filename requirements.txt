@@ -1,0 +1,22 @@
+# Inference backend
+exllamav2>=0.3.2
+
+# HTTP client
+requests>=2.32.0
+
+# Web research
+duckduckgo-search>=6.0.0
+trafilatura>=1.12.0
+
+# Embeddings (CPU-only, for repetition detection and RAG)
+sentence-transformers>=3.0.0
+
+# Vector DB for RAG (long debates)
+chromadb>=0.5.0
+
+# Config
+pyyaml>=6.0.0
+
+# TTS — install Fish Speech separately via:
+#   git clone https://github.com/fishaudio/fish-speech
+#   pip install -e fish-speech/

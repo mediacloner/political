@@ -1,0 +1,49 @@
+tabbyapi:
+  url: "http://localhost:5000"
+  api_key: ""          # Set if TabbyAPI is configured with auth
+  timeout: 120         # seconds per generation request
+
+models:
+  us:
+    name: "gemma-3-12b-exl2-4.5bpw"
+    path: "~/models/gemma-3-12b-exl2-4.5bpw"
+    max_seq_len: 8192
+    temperature: 0.9
+    top_p: 0.95
+    max_tokens: 1024
+  china:
+    name: "deepseek-r1-distill-qwen-14b-exl2-3.75bpw"
+    path: "~/models/deepseek-r1-distill-qwen-14b-exl2-3.75bpw"
+    max_seq_len: 8192
+    temperature: 0.9
+    top_p: 0.95
+    max_tokens: 1024
+  judge:
+    name: "qwen-2.5-14b-instruct-exl2-3.5bpw"
+    path: "~/models/qwen-2.5-14b-instruct-exl2-3.5bpw"
+    max_seq_len: 16384
+    temperature: 0.4
+    top_p: 0.9
+    max_tokens: 2048
+
+debate:
+  default_max_rounds: 8
+  default_time_limit_minutes: 20
+  recent_turns_window: 3          # Tier 3: last N verbatim turns
+  summary_every_n_turns: 3        # Summarize after every N turns
+  repetition_threshold: 0.85      # Cosine similarity flag level
+  repetition_max_consecutive: 3   # Consecutive flags before early exit
+  devil_advocate_every_n: 4       # Inject anti-collapse prompt every N rounds
+
+research:
+  enabled: true
+  max_results_per_query: 5
+  max_content_chars: 2000         # Truncate extracted articles
+  tavily_api_key: ""              # Optional; leave blank to skip
+  jina_enabled: true              # Jina Reader fallback for JS pages
+
+output:
+  transcripts_dir: "output/transcripts"
+  audio_dir: "output/audio"
+  save_debate_state: true
+  save_thinking: false            # Include <thinking> blocks in output
