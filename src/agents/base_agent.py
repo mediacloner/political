@@ -3,6 +3,7 @@ BaseAgent — shared logic for all three debate agents.
 """
 
 import json
+import re
 from src.prompts.templates import (
     DEBATER_SYSTEM,
     JUDGE_SYSTEM,
@@ -10,6 +11,8 @@ from src.prompts.templates import (
     extract_tag,
     CLAIM_EXTRACTION,
 )
+
+_TAG_RE = re.compile(r'</?(?:thinking|argument|question|verdict)>')
 
 
 class BaseAgent:
@@ -49,7 +52,7 @@ class BaseAgent:
         if argument == raw.strip():
             thinking = ""
 
-        return argument, thinking
+        return _TAG_RE.sub('', argument).strip(), thinking
 
     def parse_question(self, raw: str) -> tuple[str, str]:
         """For judge question turns: returns (question, thinking)."""
@@ -57,7 +60,7 @@ class BaseAgent:
         thinking = extract_tag(raw, "thinking")
         if question == raw.strip():
             thinking = ""
-        return question, thinking
+        return _TAG_RE.sub('', question).strip(), thinking
 
     def parse_verdict(self, raw: str) -> tuple[str, str]:
         """For judge verdict: returns (verdict, thinking)."""
@@ -65,7 +68,7 @@ class BaseAgent:
         thinking = extract_tag(raw, "thinking")
         if verdict == raw.strip():
             thinking = ""
-        return verdict, thinking
+        return _TAG_RE.sub('', verdict).strip(), thinking
 
     def extract_claims(self, argument: str, tabby_client) -> tuple[list, list]:
         """
@@ -75,12 +78,16 @@ class BaseAgent:
         prompt = CLAIM_EXTRACTION.format(argument_text=argument)
         messages = [{"role": "user", "content": prompt}]
         try:
-            raw = tabby_client.chat(messages, temperature=0.2, max_tokens=300)
+            raw = tabby_client.chat(messages, temperature=0.2, max_tokens=600)
+            # Strip <think>...</think> blocks (DeepSeek-R1 wraps output)
+            cleaned = re.sub(r'<think>.*?</think>', '', raw, flags=re.DOTALL).strip()
+            # Also strip any other XML-style tags
+            cleaned = _TAG_RE.sub('', cleaned).strip()
             # Find JSON block
-            start = raw.find("{")
-            end = raw.rfind("}") + 1
+            start = cleaned.find("{")
+            end = cleaned.rfind("}") + 1
             if start >= 0 and end > start:
-                data = json.loads(raw[start:end])
+                data = json.loads(cleaned[start:end])
                 return data.get("claims", []), data.get("evidence", [])
         except Exception:
             pass

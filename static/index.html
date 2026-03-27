@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Politics AI Swarm</title>
+<style>
+:root{--bg:#0d1117;--bg2:#161b22;--bg3:#21262d;--bd:#30363d;--tx:#e6edf3;
+      --mu:#8b949e;--bl:#58a6ff;--gn:#3fb950;--rd:#f85149;--yl:#d29922;--or:#ffa657;
+      --us:#58a6ff;--cn:#ffa657;--ju:#ffd700;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh;}
+a{color:var(--bl);}
+
+header{background:var(--bg2);border-bottom:1px solid var(--bd);padding:.7rem 1.5rem;display:flex;align-items:center;gap:1rem;}
+header h1{font-size:1.1rem;font-weight:700;}
+header h1 em{color:var(--bl);font-style:normal;}
+.sbar{background:var(--bg2);border-bottom:1px solid var(--bd);padding:.35rem 1.5rem;display:flex;gap:1.5rem;font-size:.78rem;flex-wrap:wrap;align-items:center;}
+.si{display:flex;align-items:center;gap:.4rem;}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.dot-g{background:var(--gn);box-shadow:0 0 5px var(--gn);}
+.dot-r{background:var(--rd);}
+
+.nav{display:flex;background:var(--bg2);border-bottom:1px solid var(--bd);padding:0 1.5rem;}
+.nav-tab{padding:.6rem 1.2rem;font-size:.82rem;cursor:pointer;color:var(--mu);border-bottom:2px solid transparent;margin-bottom:-1px;font-weight:600;}
+.nav-tab.on{color:var(--tx);border-bottom-color:var(--bl);}
+.nav-tab:hover{color:var(--tx);}
+.page{display:none;padding:1.1rem 1.5rem;max-width:100%;margin:0 auto;}
+.live-layout{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;align-items:start;}
+.live-main{min-width:0;}
+.live-sidebar{position:sticky;top:1rem;display:flex;flex-direction:column;gap:1rem;}
+@media(max-width:1000px){.live-layout{grid-template-columns:1fr;}.live-sidebar{position:static;}}
+.page.on{display:block;}
+
+.card{background:var(--bg2);border:1px solid var(--bd);border-radius:8px;overflow:hidden;margin-bottom:1.1rem;}
+.ch{padding:.55rem 1rem;border-bottom:1px solid var(--bd);font-size:.72rem;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;justify-content:space-between;}
+.cb{padding:.9rem;}
+
+.fg{margin-bottom:.65rem;}
+label{display:block;font-size:.775rem;color:var(--mu);margin-bottom:.2rem;}
+input[type=text],input[type=number],select,textarea{width:100%;background:var(--bg3);border:1px solid var(--bd);border-radius:5px;color:var(--tx);padding:.42rem .65rem;font-size:.8125rem;font-family:inherit;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bl);}
+textarea{resize:vertical;min-height:58px;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;}
+.cbrow{display:flex;align-items:center;gap:.45rem;}
+.cbrow input{width:auto;}
+.cbrow label{margin:0;color:var(--tx);font-size:.8rem;}
+.checks{display:flex;gap:1.25rem;margin:.15rem 0 .65rem;}
+button.pri{display:block;width:100%;padding:.52rem;border-radius:6px;background:var(--bl);color:#0d1117;font-weight:700;font-size:.84rem;border:none;cursor:pointer;transition:opacity .15s;}
+button.pri:hover{opacity:.85;}
+button.pri:disabled{opacity:.35;cursor:not-allowed;}
+button.sm{background:none;border:1px solid var(--bd);color:var(--mu);padding:.22rem .55rem;border-radius:4px;font-size:.72rem;cursor:pointer;}
+button.sm:hover{border-color:var(--tx);color:var(--tx);}
+
+/* Live banner */
+.live-banner{background:linear-gradient(135deg,rgba(88,166,255,.08),rgba(255,166,87,.08));border:1px solid var(--bd);border-radius:8px;padding:1rem 1.2rem;margin-bottom:1.1rem;display:flex;align-items:center;gap:1rem;}
+.live-dot{width:10px;height:10px;border-radius:50%;background:var(--rd);animation:pulse 1.5s infinite;}
+.live-dot.active{background:var(--gn);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+.live-topic{font-size:1.15rem;font-weight:700;flex:1;}
+.live-meta{font-size:.75rem;color:var(--mu);display:flex;gap:1rem;align-items:center;}
+.live-phase{padding:.15em .5em;border-radius:4px;font-size:.7rem;font-weight:700;background:rgba(88,166,255,.15);color:var(--bl);}
+
+.progress-wrap{background:var(--bg3);border-radius:6px;height:8px;margin:0 0 1.1rem;overflow:hidden;}
+.progress-bar{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--bl),var(--gn));transition:width .5s;}
+
+/* Turn cards */
+.turn{margin-bottom:1rem;background:var(--bg2);border:1px solid var(--bd);border-radius:8px;overflow:hidden;}
+.turn.new{animation:fadeIn .5s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+.turn-hdr{padding:.65rem 1.1rem;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;}
+.badge{display:inline-block;padding:.25em .65em;border-radius:5px;font-size:.95rem;font-weight:700;}
+.b-us{background:rgba(88,166,255,.15);color:var(--us);}
+.b-cn{background:rgba(255,166,87,.15);color:var(--cn);}
+.b-ju{background:rgba(255,215,0,.12);color:var(--ju);}
+.rnd{color:var(--mu);font-size:.88rem;}
+.rep{color:var(--rd);font-size:.72rem;}
+.qs{color:var(--mu);font-size:.72rem;margin-left:auto;}
+.turn-body{padding:1rem 1.2rem;}
+.tcontent{color:#c9d1d9;white-space:pre-wrap;word-break:break-word;font-size:1.05rem;line-height:1.85;}
+
+.sources{margin-bottom:.65rem;padding:.5rem .7rem;background:var(--bg3);border-radius:6px;border-left:3px solid var(--bl);}
+.sources-title{font-size:.7rem;color:var(--mu);font-weight:600;margin-bottom:.3rem;text-transform:uppercase;letter-spacing:.04em;}
+.source-link{font-size:.75rem;margin-bottom:.15rem;}
+.source-link a{color:var(--bl);text-decoration:none;}
+.source-link a:hover{text-decoration:underline;}
+
+/* Thinking collapsible */
+.thinking-toggle{display:inline-flex;align-items:center;gap:.3rem;font-size:.7rem;color:var(--mu);cursor:pointer;
+  padding:.2rem .5rem;border-radius:4px;border:1px solid var(--bd);background:none;margin-bottom:.5rem;transition:all .15s;}
+.thinking-toggle:hover{border-color:var(--mu);color:var(--tx);}
+.thinking-toggle .arrow{transition:transform .2s;display:inline-block;}
+.thinking-toggle.open .arrow{transform:rotate(90deg);}
+.thinking-box{display:block;margin-bottom:.65rem;padding:.8rem 1rem;background:rgba(139,148,158,.06);
+  border:1px solid var(--bd);border-radius:6px;border-left:3px solid var(--mu);font-size:.88rem;color:var(--mu);
+  line-height:1.7;white-space:pre-wrap;word-break:break-word;font-style:italic;}
+.thinking-box.closed{display:none;}
+
+/* Quality chart */
+.chart-wrap{background:var(--bg2);border:1px solid var(--bd);border-radius:8px;padding:1rem;margin-bottom:1.1rem;}
+.chart-title{font-size:.72rem;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.6rem;}
+.chart{display:flex;align-items:end;gap:3px;height:120px;}
+.chart-bar{flex:1;border-radius:3px 3px 0 0;min-width:6px;position:relative;transition:height .3s;}
+.chart-bar.us{background:var(--us);}
+.chart-bar.cn{background:var(--cn);}
+.chart-bar.ju{background:var(--ju);}
+.chart-bar:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--bg3);color:var(--tx);padding:2px 6px;border-radius:3px;font-size:.65rem;white-space:nowrap;border:1px solid var(--bd);}
+.chart-legend{display:flex;gap:1rem;margin-top:.5rem;font-size:.72rem;color:var(--mu);}
+.chart-legend span::before{content:'';display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:.3rem;vertical-align:middle;}
+.chart-legend .l-us::before{background:var(--us);}
+.chart-legend .l-cn::before{background:var(--cn);}
+.chart-legend .l-ju::before{background:var(--ju);}
+
+/* Claims */
+.claims-grid{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:1.1rem;}
+.live-sidebar .claim-card{margin-bottom:0;}
+.claim-card{background:var(--bg2);border:1px solid var(--bd);border-radius:8px;padding:.75rem;}
+.claim-card h4{font-size:.72rem;color:var(--mu);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem;}
+.claim-item{font-size:.9rem;padding:.35rem 0;border-bottom:1px solid var(--bg3);color:#c9d1d9;line-height:1.5;}
+.claim-item:last-child{border-bottom:none;}
+
+/* Verdict */
+.verdict{background:linear-gradient(135deg,rgba(255,215,0,.05),rgba(88,166,255,.05));border:1px solid rgba(255,215,0,.2);border-radius:8px;padding:1rem 1.2rem;margin-bottom:1.1rem;}
+.verdict h3{font-size:1.1rem;color:var(--ju);margin-bottom:.6rem;}
+.verdict .tcontent{font-size:1.05rem;}
+
+/* Sessions */
+.ditem{padding:.6rem .9rem;border-bottom:1px solid var(--bd);cursor:pointer;transition:background .1s;}
+.ditem:hover{background:var(--bg3);}
+.ditem:last-child{border-bottom:none;}
+.dtopic{font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:.18rem;}
+.dmeta{font-size:.7rem;color:var(--mu);display:flex;gap:.65rem;flex-wrap:wrap;}
+.st-run{color:var(--yl);}
+.st-done{color:var(--gn);}
+.st-err{color:var(--rd);}
+
+/* Transcript panel */
+.tsplit{display:grid;grid-template-columns:290px 1fr;min-height:400px;}
+.tlist{border-right:1px solid var(--bd);overflow-y:auto;max-height:700px;}
+.tview{padding:1.1rem 1.25rem;overflow-y:auto;max-height:700px;font-size:.8375rem;line-height:1.75;}
+
+/* Log */
+.log{background:#010409;border-radius:5px;padding:.65rem .75rem;font-family:'Monaco','Menlo','Consolas',monospace;font-size:.7rem;height:400px;overflow-y:auto;line-height:1.6;white-space:pre-wrap;word-break:break-word;}
+.ll{padding:1px 0;color:var(--mu);}
+.ll.ph{color:var(--bl);font-weight:bold;}
+.ll.us{color:#79c0ff;}
+.ll.cn{color:var(--or);}
+.ll.ju{color:#ffd700;}
+.ll.er{color:var(--rd);}
+.ll.wn{color:var(--yl);}
+.ll.ok{color:var(--tx);}
+
+/* Audio */
+.player-wrap{background:var(--bg3);border:1px solid var(--bd);border-radius:7px;padding:.8rem;margin-bottom:1rem;}
+audio{width:100%;margin-bottom:.5rem;height:36px;}
+.seg{padding:.7rem .9rem;border-left:3px solid transparent;margin-bottom:0;cursor:pointer;transition:all .2s;opacity:.5;}
+.seg:hover{opacity:.8;background:var(--bg3);}
+.seg.active{opacity:1;border-left-color:var(--bl);background:rgba(88,166,255,.07);border-radius:0 6px 6px 0;}
+.seg.active.ag-us{border-left-color:var(--us);}
+.seg.active.ag-cn{border-left-color:var(--cn);}
+.seg.active.ag-ju{border-left-color:var(--ju);}
+.seg-hdr{display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem;}
+.seg-time{color:var(--mu);font-size:.75rem;font-family:monospace;min-width:3.5rem;}
+.seg-text{font-size:.95rem;color:#c9d1d9;line-height:1.7;}
+.pod-form{background:var(--bg3);border:1px solid var(--bd);border-radius:6px;padding:.8rem;margin-bottom:.85rem;}
+.pod-form h4{font-size:.8rem;margin-bottom:.6rem;color:var(--mu);text-transform:uppercase;letter-spacing:.05em;}
+.pod-log{background:#010409;border-radius:4px;padding:.5rem .6rem;font-family:monospace;font-size:.68rem;height:80px;overflow-y:auto;margin-top:.5rem;}
+.tabs{display:flex;border-bottom:1px solid var(--bd);margin-bottom:.85rem;}
+.tab{padding:.45rem .8rem;font-size:.78rem;cursor:pointer;color:var(--mu);border-bottom:2px solid transparent;margin-bottom:-1px;}
+.tab.on{color:var(--tx);border-bottom-color:var(--bl);}
+.empty{text-align:center;padding:2rem;color:var(--mu);font-size:.8rem;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Politics AI <em>Swarm</em></h1>
+  <span id="hdr-active" style="margin-left:auto;font-size:.78rem;color:var(--mu)"></span>
+</header>
+
+<div class="sbar">
+  <div class="si"><div class="dot" id="tdot"></div><span id="ttxt">TabbyAPI ...</span></div>
+  <div class="si"><span id="actxt">-</span></div>
+  <div class="si"><span id="txctxt">-</span></div>
+  <div class="si" style="margin-left:auto"><span id="reftxt" style="color:var(--mu)"></span></div>
+</div>
+
+<div class="nav">
+  <div class="nav-tab on" onclick="showPage('live')">Live Debate</div>
+  <div class="nav-tab" onclick="showPage('new')">New Debate</div>
+  <div class="nav-tab" onclick="showPage('transcripts')">Transcripts</div>
+  <div class="nav-tab" onclick="showPage('log')">Raw Log</div>
+</div>
+
+<!-- PAGE: Live Debate -->
+<div class="page on" id="page-live">
+  <div id="live-area">
+    <div class="empty" id="live-empty">No debate running. Start one from <b>New Debate</b> or run a script from the CLI.</div>
+  </div>
+</div>
+
+<!-- PAGE: New Debate -->
+<div class="page" id="page-new">
+  <div style="display:grid;grid-template-columns:400px 1fr;gap:1.1rem;">
+    <div>
+      <div class="card">
+        <div class="ch">New Debate</div>
+        <div class="cb">
+          <div class="fg"><label>Topic</label><textarea id="f-topic" placeholder="e.g. Should EU partner with NASA or CNSA for a lunar base?"></textarea></div>
+          <div class="row2">
+            <div class="fg"><label>Max Rounds</label><input type="number" id="f-rounds" placeholder="8" min="1" max="20"></div>
+            <div class="fg"><label>Time Limit (min)</label><input type="number" id="f-tlimit" placeholder="20" min="1" max="120"></div>
+          </div>
+          <div class="row2">
+            <div class="fg"><label>US Persona</label><select id="f-us"><option value="">Default (Strategist)</option><option value="lobbyist">Dir. J. Harrington</option><option value="analyst">Dr. Sarah Chen</option></select></div>
+            <div class="fg"><label>China Persona</label><select id="f-cn"><option value="">Default (Director)</option><option value="enterprise_rep">Chairman Liu Peng</option><option value="economist">Prof. Zhang Yifei</option></select></div>
+          </div>
+          <div class="fg"><label>EU Persona</label><select id="f-eu"><option value="">Default (Strategist)</option><option value="hawk">Adm. Henrik Sorensen</option><option value="economist">Dr. Marie Leclerc</option></select></div>
+          <div class="checks">
+            <div class="cbrow"><input type="checkbox" id="f-res" checked><label for="f-res">Web Research</label></div>
+            <div class="cbrow"><input type="checkbox" id="f-pod"><label for="f-pod">Podcast</label></div>
+          </div>
+          <button class="pri" id="start-btn" onclick="startDebate()">&#9654; Start Debate</button>
+        </div>
+      </div>
+      <div class="card"><div class="ch">Sessions <button class="sm" onclick="loadDebates()">&#8635;</button></div><div id="debates-list"><div class="empty">No debates this session</div></div></div>
+    </div>
+    <div class="card"><div class="ch"><span>Console</span><span id="log-topic" style="font-weight:400;color:var(--mu);max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span></div><div style="padding:.65rem;"><div class="log" id="log-viewer"><div class="ll" style="color:var(--mu)">Start a debate to see output here.</div></div></div></div>
+  </div>
+</div>
+
+<!-- PAGE: Transcripts -->
+<div class="page" id="page-transcripts">
+  <div class="card">
+    <div class="ch">Transcripts &amp; Podcast <button class="sm" onclick="loadTranscripts()">&#8635; Refresh</button></div>
+    <div class="tsplit">
+      <div class="tlist" id="tx-list"><div class="empty">Loading...</div></div>
+      <div class="tview" id="tx-view"><div class="empty">Select a transcript.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: Raw Log -->
+<div class="page" id="page-log">
+  <div class="card"><div class="ch">Raw Console Log</div><div style="padding:.65rem;"><div class="log" id="raw-log" style="height:calc(100vh - 200px);"><div class="ll" style="color:var(--mu)">Console output from web-started debates appears here.</div></div></div></div>
+</div>
+
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const LBL={us:'\u{1F1FA}\u{1F1F8} US',china:'\u{1F1E8}\u{1F1F3} China',judge:'\u{1F1EA}\u{1F1FA} EU Judge'};
+const BCLS={us:'b-us',china:'b-cn',judge:'b-ju'};
+
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('on'));
+  const page=$('page-'+id);if(page)page.classList.add('on');
+  const tabs=document.querySelectorAll('.nav-tab');
+  const idx={live:0,new:1,transcripts:2,log:3}[id]||0;
+  if(tabs[idx])tabs[idx].classList.add('on');
+}
+
+// ── Status polling ────────────────────────────────────────────────────────────
+let _webDebateActive=false, _statusHash='';
+async function checkStatus(){
+  try{
+    const d=await fetch('/api/status').then(r=>r.json());
+    const h=''+d.tabbyapi.alive+':'+d.active_debates+':'+d.transcript_count;
+    if(h!==_statusHash){
+      _statusHash=h;
+      $('tdot').className='dot '+(d.tabbyapi.alive?'dot-g':'dot-r');
+      $('ttxt').textContent='TabbyAPI '+(d.tabbyapi.alive?d.tabbyapi.url:'OFFLINE');
+      $('actxt').textContent=d.active_debates+' running';
+      $('txctxt').textContent=d.transcript_count+' transcripts';
+      $('hdr-active').textContent=d.active_debates>0?d.active_debates+' debate'+(d.active_debates>1?'s':'')+' running':'';
+    }
+    $('reftxt').textContent=new Date().toLocaleTimeString();
+  }catch{$('tdot').className='dot dot-r';}
+}
+
+// ── Live Debate (rich real-time view) ─────────────────────────────────────────
+let _liveLastTurns=0, _liveHash='';
+async function pollLiveDebate(){
+  try{
+    const d=await fetch('/api/live/debate').then(r=>r.json());
+    if(!d||(!d.topic&&!d.active)){
+      if(!_webDebateActive&&_liveHash!=='empty'){_liveHash='empty';$('live-area').innerHTML='<div class="empty">No debate running. Start one from <b>New Debate</b> or run a script from the CLI.</div>';}
+      return;
+    }
+    // Only re-render when data actually changed
+    const hash=''+(d.turns||[]).length+':'+(d.round_num||0)+':'+(d.phase||'')+':'+(d.verdict?'v':'')+':'+Object.keys(d.scores||{}).length+':'+(d.us_claims||[]).length+':'+(d.china_claims||[]).length+':'+(d.finished?'f':'');
+    if(hash===_liveHash)return;
+    _liveHash=hash;
+    renderLiveDebate(d);
+  }catch{}
+}
+
+function renderLiveDebate(d){
+  const area=$('live-area');
+  const turns=d.turns||[];
+  const scores=d.scores||{};
+  const phase=d.phase||'';
+  const isActive=!d.finished;
+  const progress=d.max_rounds?Math.min(100,((d.round_num||0)/d.max_rounds)*100):0;
+
+  // Banner (full width)
+  let html='<div class="live-banner">';
+  html+='<div class="live-dot '+(isActive?'active':'')+'"></div>';
+  html+='<div class="live-topic">'+esc(d.topic)+'</div>';
+  html+='<div class="live-meta">';
+  html+='<span class="live-phase">'+phase.toUpperCase()+'</span>';
+  html+='<span>Round '+(d.round_num||0)+(d.max_rounds?' / '+d.max_rounds:'')+'</span>';
+  html+='</div></div>';
+  html+='<div class="progress-wrap"><div class="progress-bar" style="width:'+progress+'%"></div></div>';
+
+  // Two-column layout
+  html+='<div class="live-layout">';
+
+  // LEFT: turns timeline
+  html+='<div class="live-main">';
+  if(d.verdict){
+    html+='<div class="verdict"><h3>\u{1F1EA}\u{1F1FA} Final Verdict</h3><div class="tcontent">'+esc(d.verdict)+'</div></div>';
+  }
+  for(const t of turns){
+    if(d.verdict && t.content===d.verdict)continue;
+    html+=renderTurnCard(t);
+  }
+  if(isActive){
+    html+='<div style="text-align:center;padding:1.5rem;color:var(--mu);font-size:.82rem;">';
+    html+='<div class="live-dot active" style="display:inline-block;margin-right:.5rem;vertical-align:middle;"></div>';
+    html+='Waiting for next turn...</div>';
+  }
+  html+='</div>';
+
+  // RIGHT: sidebar (scores + claims + evidence)
+  html+='<div class="live-sidebar">';
+
+  // Quality chart
+  const scoreKeys=Object.keys(scores).sort((a,b)=>+a - +b);
+  if(scoreKeys.length>0){
+    html+='<div class="chart-wrap"><div class="chart-title">Quality Scores</div><div class="chart">';
+    for(const rk of scoreKeys){
+      const rs=scores[rk];
+      for(const ag of ['us','china']){
+        if(!rs[ag])continue;
+        const avg=typeof rs[ag]==='object'?Object.values(rs[ag]).reduce((a,b)=>a+b,0)/Object.values(rs[ag]).length:rs[ag];
+        const pct=Math.max(5,(avg/5)*100);
+        const cls=ag==='judge'?'ju':ag==='china'?'cn':ag;
+        html+='<div class="chart-bar '+cls+'" style="height:'+pct+'%" data-tip="R'+rk+' '+ag+': '+avg.toFixed(1)+'"></div>';
+      }
+    }
+    html+='</div><div class="chart-legend"><span class="l-us">US</span><span class="l-cn">China</span></div></div>';
+  }
+
+  // US + China Claims side by side
+  if((d.us_claims&&d.us_claims.length)||(d.china_claims&&d.china_claims.length)){
+    html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">';
+    html+='<div class="claim-card"><h4 style="color:var(--us)">\u{1F1FA}\u{1F1F8} US ('+(d.us_claims||[]).length+')</h4>';
+    (d.us_claims||[]).forEach(c=>{html+='<div class="claim-item">'+esc(c)+'</div>';});
+    html+='</div>';
+    html+='<div class="claim-card"><h4 style="color:var(--cn)">\u{1F1E8}\u{1F1F3} China ('+(d.china_claims||[]).length+')</h4>';
+    (d.china_claims||[]).forEach(c=>{html+='<div class="claim-item">'+esc(c)+'</div>';});
+    html+='</div></div>';
+  }
+
+  // Evidence cited
+  const ev=d.evidence_cited||{};
+  const allEv=[...(ev.us||[]),...(ev.china||[])];
+  if(allEv.length){
+    html+='<div class="claim-card"><h4>\u{1F4CE} Evidence Cited ('+allEv.length+')</h4>';
+    allEv.forEach(e=>{html+='<div class="claim-item" style="font-size:.78rem;">'+esc(e)+'</div>';});
+    html+='</div>';
+  }
+
+  html+='</div>'; // end sidebar
+  html+='</div>'; // end live-layout
+
+  area.innerHTML=html;
+
+  if(turns.length>_liveLastTurns){
+    _liveLastTurns=turns.length;
+    window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+  }
+}
+
+function stripTags(s){
+  return s.replace(/<\/?(?:thinking|argument|question|verdict)>/g,'').trim();
+}
+function renderTurnCard(t){
+  const agent=t.agent||'';
+  const research=t.research||[];
+  const qs=t.quality_score;
+  const tid='think-'+Math.random().toString(36).slice(2,8);
+  let h='<div class="turn new"><div class="turn-hdr">';
+  h+='<span class="badge '+(BCLS[agent]||'')+'">'+(LBL[agent]||agent)+'</span>';
+  h+='<span class="rnd">Round '+t.round+'</span>';
+  if(t.is_repetitive)h+='<span class="rep">\u26A0 repetitive</span>';
+  if(qs)h+='<span class="qs">'+fmtQ(qs)+'</span>';
+  h+='</div><div class="turn-body">';
+  // Thinking (collapsible)
+  if(t.thinking&&t.thinking.trim()){
+    h+='<button class="thinking-toggle open" onclick="toggleThinking(this,\''+tid+'\')"><span class="arrow">\u25B6</span> Internal reasoning</button>';
+    h+='<div class="thinking-box" id="'+tid+'">'+esc(stripTags(t.thinking))+'</div>';
+  }
+  // Research sources
+  if(research.length){
+    h+='<div class="sources"><div class="sources-title">\u{1F50D} Sources ('+research.length+')</div>';
+    research.forEach(s=>{h+='<div class="source-link"><a href="'+esc(s.url)+'" target="_blank" rel="noopener">'+esc(s.title||s.url)+'</a></div>';});
+    h+='</div>';
+  }
+  h+='<div class="tcontent">'+esc(stripTags(t.content))+'</div></div></div>';
+  return h;
+}
+function toggleThinking(btn,id){
+  btn.classList.toggle('open');
+  const box=document.getElementById(id);
+  if(box)box.classList.toggle('closed');
+}
+
+// ── Debates list ──────────────────────────────────────────────────────────────
+let _debatesHash='';
+async function loadDebates(){
+  try{
+    const d=await fetch('/api/debates').then(r=>r.json());
+    const h=d.debates.map(x=>x.id+':'+x.status+':'+x.round_num).join(',');
+    if(h===_debatesHash)return;
+    _debatesHash=h;
+    const el=$('debates-list');
+    if(!d.debates.length){el.innerHTML='<div class="empty">No debates this session</div>';return;}
+    el.innerHTML=d.debates.map(x=>'<div class="ditem" onclick="watchDebate('+JSON.stringify(x.id)+','+JSON.stringify(x.topic)+')"><div class="dtopic">'+esc(x.topic)+'</div><div class="dmeta"><span class="'+stClass(x.status)+'">'+x.status+'</span>'+(x.round_num!=null?'<span>Rd '+x.round_num+'</span>':'')+(x.finish_reason?'<span>'+x.finish_reason+'</span>':'')+'<span>'+ago(x.created_at)+'</span></div></div>').join('');
+  }catch{}
+}
+function stClass(s){return 'st-'+(s==='running'?'run':s==='done'?'done':'err');}
+
+// ── Start debate ──────────────────────────────────────────────────────────────
+async function startDebate(){
+  const topic=$('f-topic').value.trim();
+  if(!topic){alert('Topic is required');return;}
+  const params={topic,rounds:parseInt($('f-rounds').value)||null,time_limit:parseInt($('f-tlimit').value)||null,us_persona:$('f-us').value||null,china_persona:$('f-cn').value||null,eu_persona:$('f-eu').value||null,podcast:$('f-pod').checked,research_enabled:$('f-res').checked};
+  const btn=$('start-btn');btn.disabled=true;btn.textContent='Starting...';
+  try{
+    const d=await fetch('/api/debate/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(params)}).then(r=>r.json());
+    if(d.error){alert(d.error);return;}
+    _webDebateActive=true;
+    openStream(d.debate_id,topic);loadDebates();
+    showPage('log');
+  }finally{btn.disabled=false;btn.textContent='\u25B6 Start Debate';}
+}
+
+// ── SSE streaming ─────────────────────────────────────────────────────────────
+const streams={};
+function openStream(id,topic){
+  if(streams[id])streams[id].close();
+  const v=$('log-viewer');v.innerHTML='';
+  const rv=$('raw-log');rv.innerHTML='';
+  $('log-topic').textContent=topic;
+  const es=new EventSource('/api/debate/'+id+'/stream');
+  streams[id]=es;
+  es.onmessage=e=>{
+    const d=JSON.parse(e.data);
+    if(d.done){es.close();delete streams[id];_webDebateActive=false;loadDebates();loadTranscripts();checkStatus();return;}
+    addLog(v,d.text);addLog(rv,d.text);
+  };
+  es.onerror=()=>{es.close();delete streams[id];_webDebateActive=false;};
+}
+async function watchDebate(id,topic){
+  const r=await fetch('/api/debate/'+id+'/logs').then(r=>r.json());
+  const v=$('log-viewer');v.innerHTML='';$('log-topic').textContent=topic;
+  r.logs.forEach(l=>addLog(v,l.text));
+  if(r.status==='running'||r.status==='starting')openStream(id,topic);
+  showPage('log');
+}
+function addLog(v,text){
+  if(!v)return;
+  const d=document.createElement('div');d.className='ll '+clf(text);d.textContent=text;
+  v.appendChild(d);v.scrollTop=v.scrollHeight;
+}
+function clf(t){
+  if(/Phase \d|={4,}|DEBATE:|Debate:/.test(t))return 'ph';
+  if(t.includes('[us]'))return 'us';
+  if(t.includes('[china]'))return 'cn';
+  if(/\[judge\]|\[verdict\]|\[quality\]|\[podcast\]|\[eu\]/.test(t))return 'ju';
+  if(/ERROR|error/.test(t))return 'er';
+  if(/REPETITIVE|WARNING/.test(t))return 'wn';
+  if(t.trim())return 'ok';return '';
+}
+
+// ── Transcripts ───────────────────────────────────────────────────────────────
+async function loadTranscripts(){
+  try{
+    const d=await fetch('/api/transcripts').then(r=>r.json());
+    const el=$('tx-list');
+    if(!d.transcripts.length){el.innerHTML='<div class="empty">No transcripts yet</div>';return;}
+    el.innerHTML=d.transcripts.map(t=>'<div class="ditem" onclick="viewTranscript('+JSON.stringify(t.filename)+')"><div class="dtopic">'+esc(t.topic)+'</div><div class="dmeta"><span>'+t.rounds+' rounds</span><span>'+(t.finish_reason||'-')+'</span><span>'+ago(t.mtime)+'</span></div></div>').join('');
+  }catch{}
+}
+
+let _audioEl=null,_manifest=null,_txFilename=null;
+async function viewTranscript(fname){
+  _txFilename=fname;
+  const [tx,pod]=await Promise.all([fetch('/api/transcripts/'+fname).then(r=>r.json()),fetch('/api/podcast/for-transcript/'+fname).then(r=>r.json())]);
+  renderTranscriptView(tx,pod.podcast,fname);
+}
+
+function renderTranscriptView(tx,podcast,fname){
+  const v=$('tx-view');
+  let html='<h3 style="font-size:.95rem;margin-bottom:.3rem">'+esc(tx.topic)+'</h3>';
+  html+='<div style="font-size:.72rem;color:var(--mu);margin-bottom:.9rem">'+tx.round_num+' rounds &middot; '+(tx.finish_reason||'in progress')+'</div>';
+
+  if(podcast&&podcast.audio_exists){
+    html+='<div class="player-wrap" id="player-wrap"><audio id="audio-el" controls preload="metadata"><source src="/api/audio/'+esc(podcast.audio_file)+'" type="audio/mpeg"></audio>';
+    html+='<div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem;"><span style="font-size:.75rem;color:var(--mu)">\u25B6 '+fmt(podcast.total_duration)+'</span><a href="/api/audio/'+esc(podcast.audio_file)+'" download style="font-size:.72rem">\u21D9 Download</a></div></div>';
+    html+='<div class="tabs"><div class="tab on" id="tab-sync" onclick="switchTab(\'sync\')">\u25B6 Synced</div><div class="tab" id="tab-turns" onclick="switchTab(\'turns\')">Turns</div></div>';
+    html+='<div id="pane-sync">'+renderSegments(podcast.segments)+'</div>';
+    html+='<div id="pane-turns" style="display:none">'+renderTxTurns(tx)+'</div>';
+  }else{
+    html+=renderPodcastForm(fname,podcast);
+    html+=renderTxTurns(tx);
+  }
+
+  v.innerHTML=html;
+  if(podcast&&podcast.audio_exists){_audioEl=document.getElementById('audio-el');_manifest=podcast.segments;_audioEl.addEventListener('timeupdate',syncHighlight);}
+}
+
+function renderTxTurns(tx){
+  let h=(tx.turns||[]).map(t=>renderTurnCard(t)).join('');
+  if(tx.verdict)h+='<div class="verdict"><h3>\u{1F1EA}\u{1F1FA} Final Verdict</h3><div class="tcontent">'+esc(tx.verdict)+'</div></div>';
+  return h;
+}
+
+function renderSegments(segs){
+  if(!segs||!segs.length)return '<div class="empty">No segments</div>';
+  const agCls={us:'ag-us',china:'ag-cn',judge:'ag-ju'};
+  return segs.map((s,i)=>'<div class="seg '+(agCls[s.agent]||'')+'" id="seg-'+i+'" data-start="'+s.start+'" data-end="'+s.end+'" onclick="seekAudio('+s.start+')"><div class="seg-hdr"><span class="badge '+(BCLS[s.agent]||'')+'">'+(LBL[s.agent]||s.agent)+'</span><span class="seg-time">'+fmt(s.start)+'</span></div><div class="seg-text">'+esc(s.text)+'</div></div>').join('');
+}
+
+function renderPodcastForm(fname,podcast){
+  const hs=podcast&&!podcast.audio_exists;
+  return '<div class="pod-form" id="pod-form"><h4>'+(hs?'Podcast script saved - generate audio':'Generate Podcast')+'</h4><div style="font-size:.75rem;color:var(--mu);margin-bottom:.6rem">Optional: override Edge TTS voice names (e.g. en-US-GuyNeural)</div><div class="row2" style="margin-bottom:.5rem"><div class="fg"><label>US voice</label><input type="text" id="pv-us" placeholder="en-US-GuyNeural"></div><div class="fg"><label>China voice</label><input type="text" id="pv-cn" placeholder="en-US-AndrewNeural"></div></div><div class="fg"><label>EU voice</label><input type="text" id="pv-ju" placeholder="en-GB-SoniaNeural"></div><button class="pri" id="pod-btn" onclick="generatePodcast(\''+esc(fname)+'\')">\u25B6 Generate Podcast</button><div class="pod-log" id="pod-log"></div></div>';
+}
+
+function switchTab(w){const s=$('tab-sync'),t=$('tab-turns'),ps=$('pane-sync'),pt=$('pane-turns');if(!s||!t)return;s.className='tab'+(w==='sync'?' on':'');t.className='tab'+(w==='turns'?' on':'');ps.style.display=w==='sync'?'':'none';pt.style.display=w==='turns'?'':'none';}
+function syncHighlight(){if(!_audioEl||!_manifest)return;const t=_audioEl.currentTime;_manifest.forEach((s,i)=>{const el=document.getElementById('seg-'+i);if(!el)return;const wasActive=el.classList.contains('active');const isActive=t>=s.start&&t<s.end;el.classList.toggle('active',isActive);if(isActive&&!wasActive)el.scrollIntoView({behavior:'smooth',block:'center'});});}
+function seekAudio(t){if(_audioEl){_audioEl.currentTime=t;_audioEl.play();}}
+function fmt(s){const m=Math.floor(s/60),sec=Math.floor(s%60);return m+':'+(sec<10?'0':'')+sec;}
+
+async function generatePodcast(fname){
+  const btn=$('pod-btn');btn.disabled=true;btn.textContent='Generating...';
+  const log=$('pod-log');log.textContent='';
+  const params={filename:fname,voice_us:($('pv-us')||{}).value||'',voice_china:($('pv-cn')||{}).value||'',voice_judge:($('pv-ju')||{}).value||''};
+  const d=await fetch('/api/podcast/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(params)}).then(r=>r.json());
+  if(d.error){alert(d.error);btn.disabled=false;btn.textContent='\u25B6 Generate Podcast';return;}
+  const es=new EventSource('/api/podcast/'+d.job_id+'/stream');
+  es.onmessage=e=>{const ev=JSON.parse(e.data);if(ev.done){es.close();btn.disabled=false;btn.textContent='\u25B6 Generate Podcast';if(_txFilename)viewTranscript(_txFilename);return;}if(ev.text){const l=document.createElement('div');l.textContent=ev.text;log.appendChild(l);log.scrollTop=log.scrollHeight;}};
+  es.onerror=()=>{es.close();btn.disabled=false;btn.textContent='\u25B6 Generate Podcast';};
+}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function ago(ts){const s=Date.now()/1000-ts;if(s<60)return 'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
+function fmtQ(q){if(!q)return '';return Object.entries(q).map(([k,v])=>k[0].toUpperCase()+':'+v).join(' ');}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+checkStatus();loadTranscripts();loadDebates();pollLiveDebate();
+setInterval(checkStatus,4000);
+setInterval(()=>{loadDebates();pollLiveDebate();},3000);
+</script>
+</body>
+</html>

@@ -502,7 +502,7 @@ def run_script():
 def launch_dashboard():
     if not _ensure_project_venv():
         return
-    port = ask_int("Dashboard port", 7860)
+    port = ask_int("Dashboard port", 8000)
     print(f"\n  {GRN}Dashboard →  http://127.0.0.1:{port}{R}")
     info("Press Ctrl+C to stop\n")
     try:

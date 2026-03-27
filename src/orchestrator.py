@@ -247,7 +247,9 @@ class Orchestrator:
 
             argument, thinking = agent.parse_response(raw)
             turn = state.add_turn(agent_key, argument, thinking)
-            print(f"  [{agent_key}] opening: {argument[:120]}...", flush=True)
+            turn.research = [{"url": r["url"], "title": r["title"]} for r in research_results]
+            print(f"\n  [{agent_key}] opening:\n{argument}\n", flush=True)
+            live_status.publish_turn(state.to_dict())
 
             # Extract claims
             claims, evidence = agent.extract_claims(argument, self.client)
@@ -255,6 +257,8 @@ class Orchestrator:
                 state.add_claim(agent_key, c)
             for e in evidence:
                 state.add_evidence(agent_key, e)
+            if claims or evidence:
+                live_status.publish_turn(state.to_dict())
 
     def _debater_turn(
         self,
@@ -289,7 +293,8 @@ class Orchestrator:
         is_rep, sim = self._repetition.check(agent_key, argument)
         turn.is_repetitive = is_rep
         flag = " [REPETITIVE]" if is_rep else ""
-        print(f"  [{agent_key}] r{state.round_num}: {argument[:100]}...{flag}", flush=True)
+        print(f"\n  [{agent_key}] r{state.round_num}:{flag}\n{argument}\n", flush=True)
+        live_status.publish_turn(state.to_dict())
 
         # Extract claims
         claims, evidence = agent.extract_claims(argument, self.client)
@@ -297,6 +302,8 @@ class Orchestrator:
             state.add_claim(agent_key, c)
         for e in evidence:
             state.add_evidence(agent_key, e)
+        if claims or evidence:
+            live_status.publish_turn(state.to_dict())
 
     def _eu_debater_turn(self, state: DebateState, round_num: int, extra: str = "") -> None:
         """EU Judge debates as an active participant rather than moderator."""
@@ -324,7 +331,8 @@ class Orchestrator:
         is_rep, sim = self._repetition.check("judge", argument)
         turn.is_repetitive = is_rep
         flag = " [REPETITIVE]" if is_rep else ""
-        print(f"  [eu]    r{round_num}: {argument[:100]}...{flag}", flush=True)
+        print(f"\n  [eu] r{round_num}:{flag}\n{argument}\n", flush=True)
+        live_status.publish_turn(state.to_dict())
 
     def _judge_question_turn(self, state: DebateState) -> str:
         """Judge generates a targeted question for the weakest argument."""
@@ -356,7 +364,8 @@ class Orchestrator:
         verdict, thinking = self._judge.parse_verdict(raw)
         state.verdict = verdict
         state.add_turn("judge", verdict, thinking)
-        print(f"\n  [verdict]\n{verdict[:300]}...", flush=True)
+        print(f"\n  [verdict]\n{verdict}\n", flush=True)
+        live_status.publish_verdict(verdict)
 
     def _score_round(self, state: DebateState, round_num: int) -> None:
         """Score the current round using the judge model."""
@@ -368,6 +377,7 @@ class Orchestrator:
                 turn.quality_score = scores[turn.agent]
         if scores:
             print(f"  [quality] r{round_num}: {scores}", flush=True)
+            live_status.publish_scores(round_num, scores)
 
     # ------------------------------------------------------------------
     # Model swap helpers
@@ -376,7 +386,8 @@ class Orchestrator:
     def _swap(self, agent_key: str) -> None:
         status = live_status.read()
         phase = status.get("phase", "debate") if status else "debate"
-        live_status.publish_phase(phase, agent=agent_key)
+        rnd = status.get("round", 0) if status else 0
+        live_status.publish_phase(phase, round_num=rnd, agent=agent_key)
         model_cfg = self.model_cfgs[agent_key]
         self.client.swap_model(
             model_name=model_cfg["name"],
@@ -402,6 +413,7 @@ class Orchestrator:
         ]
         results = []
         for query in queries[:2]:
+            print(f"    search: {query[:80]}", flush=True)
             found = search_and_extract(
                 query=query,
                 max_results=self.research_cfg["max_results_per_query"],
@@ -409,8 +421,15 @@ class Orchestrator:
                 tavily_api_key=self.research_cfg.get("tavily_api_key", ""),
                 jina_enabled=self.research_cfg.get("jina_enabled", True),
             )
+            for r in found:
+                print(f"    found: {r['title'][:70]}", flush=True)
             results.extend(found)
-        return results[:self.research_cfg["max_results_per_query"]]
+        total = results[:self.research_cfg["max_results_per_query"]]
+        if total:
+            print(f"    {len(total)} sources collected", flush=True)
+        else:
+            print(f"    no research results", flush=True)
+        return total
 
     # ------------------------------------------------------------------
     # Anti-collapse helpers

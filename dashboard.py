@@ -182,6 +182,15 @@ def api_live():
     return jsonify(status)
 
 
+@app.route("/api/live/debate")
+def api_live_debate():
+    """Full live debate state — turns, research, scores, verdict."""
+    debate = live_status.read_debate()
+    if not debate:
+        return jsonify({"active": False})
+    return jsonify(debate)
+
+
 # ── API: debates ──────────────────────────────────────────────────────────────
 
 @app.route("/api/debates")
@@ -317,7 +326,8 @@ def api_audio(fname):
     p = Path(config["output"]["audio_dir"]) / fname
     if not p.exists():
         return jsonify({"error": "not found"}), 404
-    return send_file(str(p), mimetype="audio/wav", conditional=True)
+    mime = "audio/mpeg" if fname.endswith(".mp3") else "audio/wav"
+    return send_file(str(p), mimetype=mime, conditional=True)
 
 
 # ── HTML ──────────────────────────────────────────────────────────────────────
@@ -385,7 +395,7 @@ button.danger{background:none;border:1px solid var(--rd);color:var(--rd);
 /* log */
 .log{background:#010409;border-radius:5px;padding:.65rem .75rem;
      font-family:'Monaco','Menlo','Consolas',monospace;font-size:.7rem;
-     height:380px;overflow-y:auto;line-height:1.6;}
+     height:560px;overflow-y:auto;line-height:1.6;white-space:pre-wrap;word-break:break-word;}
 .ll{padding:1px 0;color:var(--mu);}
 .ll.ph{color:var(--bl);font-weight:bold;}
 .ll.us{color:#79c0ff;}
@@ -739,6 +749,13 @@ function renderSegments(segs){
     </div>`).join('');
 }
 
+function renderResearch(sources){
+  if(!sources||!sources.length)return '';
+  return `<div style="margin:.4rem 0 .6rem;padding:.45rem .7rem;background:var(--bg3);border-radius:5px;border-left:3px solid var(--bl);font-size:.72rem;">
+    <div style="color:var(--mu);margin-bottom:.25rem;font-weight:600;">Sources (${sources.length})</div>
+    ${sources.map(s=>`<div style="margin-bottom:.15rem;"><a href="${esc(s.url)}" target="_blank" rel="noopener" style="color:var(--bl);text-decoration:none;">${esc(s.title||s.url)}</a></div>`).join('')}
+  </div>`;
+}
 function renderTurns(turns,lbl,bcls,verdict){
   let h=(turns||[]).map(t=>`
     <div class="turn">
@@ -748,6 +765,7 @@ function renderTurns(turns,lbl,bcls,verdict){
         ${t.is_repetitive?'<span class="rep">&#9888; repetitive</span>':''}
         ${t.quality_score?'<span class="qs">'+fmtQ(t.quality_score)+'</span>':''}
       </div>
+      ${renderResearch(t.research)}
       <div class="tcontent">${esc(t.content)}</div>
     </div>`).join('');
   if(verdict)h+=`<div class="turn">
@@ -848,6 +866,9 @@ setInterval(checkStatus,8000);setInterval(loadDebates,4000);
 
 @app.route("/")
 def index():
+    html_path = Path(__file__).parent / "static" / "index.html"
+    if html_path.exists():
+        return html_path.read_text()
     return _HTML
 
 
@@ -856,7 +877,7 @@ def index():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Politics AI Swarm dashboard")
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=7860)
+    parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()
     _get_config()
     print(f"\n  Politics AI Swarm  →  http://{args.host}:{args.port}\n")

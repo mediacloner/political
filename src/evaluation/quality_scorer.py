@@ -16,19 +16,19 @@ import re
 
 
 SCORE_PROMPT = """\
-Evaluate the following debate round. Score ONLY the US and China contributions.
-Do NOT score the judge.
+Evaluate the following debate round. Score all three participants.
 
 For each debater, score 1-5 on:
 - novelty: Did they introduce new points not previously made?
 - evidence: Did they cite specific data, events, or named sources?
-- engagement: Did they directly address the opponent's specific arguments?
+- engagement: Did they directly address the opponents' specific arguments?
 - coherence: Were the arguments logically consistent, no internal contradictions?
 
 Output ONLY valid JSON in this exact format:
 {{
   "us": {{"novelty": N, "evidence": N, "engagement": N, "coherence": N}},
-  "china": {{"novelty": N, "evidence": N, "engagement": N, "coherence": N}}
+  "china": {{"novelty": N, "evidence": N, "engagement": N, "coherence": N}},
+  "judge": {{"novelty": N, "evidence": N, "engagement": N, "coherence": N}}
 }}
 
 ROUND TO EVALUATE:
@@ -49,7 +49,7 @@ class QualityScorer:
         Falls back to neutral scores if LLM call fails.
         """
         turns_text = "\n\n".join(
-            f"[{t.agent.upper()}]: {t.content}" for t in turns if t.agent != "judge"
+            f"[{t.agent.upper()}]: {t.content}" for t in turns
         )
         if not turns_text.strip():
             return {}
@@ -58,7 +58,7 @@ class QualityScorer:
         messages = [{"role": "user", "content": prompt}]
 
         try:
-            raw = tabby_client.chat(messages, temperature=0.2, max_tokens=200)
+            raw = tabby_client.chat(messages, temperature=0.2, max_tokens=400)
             # Extract JSON
             start = raw.find("{")
             end = raw.rfind("}") + 1
@@ -70,7 +70,7 @@ class QualityScorer:
             print(f"  [quality] scoring failed: {e}")
 
         neutral = {"novelty": 3, "evidence": 3, "engagement": 3, "coherence": 3}
-        return {"us": neutral, "china": neutral}
+        return {"us": neutral, "china": neutral, "judge": neutral}
 
     def should_terminate(self) -> bool:
         """True if average scores have been below threshold for stagnation_rounds."""

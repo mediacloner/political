@@ -38,14 +38,17 @@ class RepetitionDetector:
 
         import numpy as np
 
+        import numpy as np
+
         embedding = model.encode([text])[0]
 
         prior = self._embeddings.get(agent, [])
         max_sim = 0.0
 
         if prior:
-            similarities = model.similarity([embedding], prior)[0]
-            max_sim = float(np.max(similarities))
+            prior_stack = np.stack(prior)
+            similarities = model.similarity([embedding], prior_stack)[0]
+            max_sim = float(similarities.max())
 
         # Store embedding
         if agent not in self._embeddings:

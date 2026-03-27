@@ -19,6 +19,7 @@ class Turn:
     timestamp: float = field(default_factory=time.time)
     quality_score: Optional[dict] = None   # Set by quality scorer
     is_repetitive: bool = False            # Set by repetition detector
+    research: list = field(default_factory=list)  # [{url, title, content}]
 
 
 @dataclass
@@ -112,6 +113,7 @@ class DebateState:
                     "timestamp": t.timestamp,
                     "quality_score": t.quality_score,
                     "is_repetitive": t.is_repetitive,
+                    "research": t.research,
                 }
                 for t in self.turns
             ],
@@ -157,6 +159,7 @@ class DebateState:
                 timestamp=t.get("timestamp", time.time()),
                 quality_score=t.get("quality_score"),
                 is_repetitive=t.get("is_repetitive", False),
+                research=t.get("research", []),
             )
             state.turns.append(turn)
         return state
