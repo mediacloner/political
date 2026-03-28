@@ -1,6 +1,6 @@
 # Politics AI Swarm
 
-A fully local, multi-agent geopolitical debate system. Three specialized LLMs represent the US, China, and the EU in structured adversarial debates. Output includes a full transcript and an optional multi-speaker audio podcast.
+A fully local, multi-agent geopolitical debate system. Three specialized LLMs represent the US, China, and the EU in structured adversarial debates. Includes a real-time web dashboard with quality scoring, claim tracking, and podcast generation.
 
 **No cloud dependencies. No API costs. Runs entirely on your machine.**
 
@@ -10,31 +10,53 @@ A fully local, multi-agent geopolitical debate system. Three specialized LLMs re
 
 Three LLM agents debate a geopolitical topic across multiple rounds:
 
-| Agent | Model | Role |
-|---|---|---|
-| US Delegation | Gemma 3 12B (EXL2 4.5 bpw) | Debater — US perspective |
-| China Delegation | DeepSeek-R1-Distill-Qwen-14B (EXL2 3.75 bpw) | Debater — Chinese perspective |
-| EU Judge | Qwen 2.5 14B Instruct (EXL2 3.5 bpw) | Synthesiser / Evaluator |
+| Agent | Model | bpw | Role |
+|---|---|---|---|
+| US Delegation | Gemma 3 12B IT (EXL2) | 4.0 | Debater -- US perspective |
+| China Delegation | DeepSeek-R1-Distill-Qwen-14B (EXL2) | 3.5 | Debater -- Chinese perspective |
+| EU Judge | Mistral Nemo Instruct 12B (EXL2) | 4.0 | Synthesizer / Evaluator |
 
-Since only one model fits in VRAM at a time, the orchestrator hot-swaps models via TabbyAPI (RAM → GPU in 1–3 seconds). All three models are pre-loaded into system RAM at startup to eliminate disk I/O on every swap.
+The EU judge uses Mistral Nemo -- a European-developed model -- to avoid potential bias from Chinese or American models in the evaluation role.
+
+Since only one model fits in VRAM at a time, the orchestrator hot-swaps models via TabbyAPI's SSE streaming API (RAM to GPU in 1-3 seconds).
 
 ### Debate flow
 
 ```
-Phase 1 — Research      Each agent searches the web and stakes an opening position
-Phase 2 — Debate loop   Judge questions → US responds → China responds → score → repeat
-Phase 3 — Verdict       Judge delivers a structured ruling (steelman → score → blind spots → verdict)
-Phase 4 — Podcast       Transcript → dialogue script → Fish Speech TTS → .wav  (optional)
+Phase 1 -- Research      Each agent searches the web and stakes an opening position
+Phase 2 -- Debate loop   US argues -> China argues -> EU argues -> score -> repeat
+Phase 3 -- Verdict       EU Judge delivers a structured ruling
+Phase 4 -- Podcast       Transcript -> dialogue script -> Edge TTS -> .mp3 (optional)
 ```
 
 ### Anti-collapse system
 
 LLMs tend toward agreement. Several mechanisms prevent this:
-- Adversarial persona instructions that require explicit disagreement each turn
+- Adversarial persona instructions requiring explicit disagreement each turn
 - Hidden chain-of-thought (`<thinking>` blocks stripped from the debate log)
-- Embedding-based repetition detection — ends debate early if arguments stagnate
+- Embedding-based repetition detection -- ends debate early if arguments stagnate
 - Devil's advocate injection every N rounds when convergence is detected
+- Quality scoring (novelty, evidence, engagement, coherence) with stagnation exit
 - Distinct temperature settings (0.9 for debaters, 0.4 for the judge)
+
+### Web dashboard
+
+Real-time dashboard at `http://localhost:8000` with:
+- **Live debate view** -- turns appear as they're generated, with research sources
+- **Quality scores chart** -- per-round scoring for US and China
+- **Claim tracker** -- side-by-side US vs China claims
+- **Transcript browser** -- view past debates with full detail
+- **Podcast player** -- YouTube-style synced transcript with audio playback
+- Works for both web-launched and CLI-launched debates
+
+### Script system
+
+Pre-configured debate scenarios in `scripts/`:
+```bash
+python menu.py --script scripts/taiwan_crisis.yaml
+```
+
+Scripts define topic, rounds, personas, research toggle, and podcast output.
 
 ---
 
@@ -44,8 +66,8 @@ LLMs tend toward agreement. Several mechanisms prevent this:
 |---|---|
 | GPU | NVIDIA RTX 3060 (12 GB VRAM) |
 | System RAM | 32 GB (holds all 3 models simultaneously) |
-| Disk | ~30 GB free (models) |
-| OS | Linux (tested on Ubuntu with CUDA 13.x) |
+| Disk | ~25 GB free (models) |
+| OS | Linux (tested on Ubuntu with CUDA) |
 
 ---
 
@@ -64,127 +86,117 @@ cd "Politics AI Swarm"
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-pip install -e tabbyAPI/
-pip install exllamav2
-```
-
-Or use the setup script (does all of the above):
-
-```bash
-bash setup_tabbyapi.sh
+pip install edge-tts
 ```
 
 **3. Download models**
 
-```bash
-source activate.sh
-python download_models.py --all
-```
-
-Models are downloaded from HuggingFace to `~/models/`. This requires ~25 GB of disk space and a HuggingFace account for some models.
-
-To download individually:
+Models are downloaded from HuggingFace into `tabbyAPI/models/`:
 
 ```bash
-python download_models.py --model gemma3     # US agent   (~7.5 GB)
-python download_models.py --model deepseek   # China agent (~8.0 GB)
-python download_models.py --model qwen       # EU judge    (~8.5 GB)
+source .venv/bin/activate
+python -c "
+from huggingface_hub import snapshot_download
+snapshot_download('turboderp/gemma-3-12b-it-exl2', revision='4.0bpw',
+                  local_dir='tabbyAPI/models/gemma-3-12b-it-exl2-4.0bpw')
+snapshot_download('bartowski/DeepSeek-R1-Distill-Qwen-14B-exl2', revision='3_5',
+                  local_dir='tabbyAPI/models/deepseek-r1-distill-qwen-14b-exl2-3.5bpw')
+snapshot_download('turboderp/Mistral-Nemo-Instruct-12B-exl2', revision='4.0bpw',
+                  local_dir='tabbyAPI/models/mistral-nemo-instruct-12b-exl2-4.0bpw')
+"
 ```
 
-**4. Start TabbyAPI**
+> **Note:** Gemma 3 12B requires patching `config.json` to add `"max_position_embeddings": 8192` at the top level and inside `text_config` (TabbyAPI needs this for RoPE scaling).
+
+**4. Start**
 
 ```bash
-source activate.sh
-cd tabbyAPI && python3 main.py
+python menu.py
 ```
 
-TabbyAPI will start on `http://localhost:5000`. The config is pre-tuned for this project at `tabbyAPI/config.yml`.
-
-**5. Verify everything works**
-
-```bash
-source activate.sh
-python main.py --check
-# TabbyAPI is reachable at http://localhost:5000
-```
+The menu auto-activates the `.venv` and starts TabbyAPI if it's not running.
 
 ---
 
 ## Usage
 
+### Interactive menu
+
 ```bash
-source activate.sh
-
-# Basic debate
-python main.py --topic "Should the ESA partner with NASA or CNSA for a lunar base?"
-
-# More options
-python main.py \
-  --topic "Is Western financial sanctions policy effective against China?" \
-  --rounds 6 \
-  --time-limit 30 \
-  --us-persona lobbyist \
-  --china-persona economist
-
-# With podcast output (requires Fish Speech — see below)
-python main.py --topic "..." --podcast --voice-us voices/us.wav
+python menu.py
 ```
 
-### CLI reference
+Options:
+- **[1] Full run** -- research, debate, verdict, podcast
+- **[2] Debate only** -- skip web research
+- **[3] Quick test** -- 1 round, no research
+- **[4] Run script** -- load a pre-configured scenario
+- **[5] List scripts** -- browse available scripts
+- **[s] System status** -- check TabbyAPI, models, transcripts
 
-| Flag | Default | Description |
-|---|---|---|
-| `--topic` | required | Debate topic |
-| `--rounds` | 8 | Maximum debate rounds |
-| `--time-limit` | 20 | Time limit in minutes |
-| `--us-persona` | `strategist` | `strategist` / `lobbyist` / `analyst` |
-| `--china-persona` | `director` | `director` / `enterprise_rep` / `economist` |
-| `--podcast` | off | Generate audio podcast after debate |
-| `--voice-us` | none | Path to US voice reference clip (.wav, 10–30s) |
-| `--voice-china` | none | Path to China voice reference clip |
-| `--voice-judge` | none | Path to EU judge voice reference clip |
-| `--config` | `config/settings.yaml` | Path to settings file |
-| `--check` | — | Verify TabbyAPI is reachable and exit |
+### Web dashboard
 
-### Output
+```bash
+python dashboard.py          # http://localhost:8000
+python dashboard.py --port 9000
+```
 
-Transcripts are saved to `output/transcripts/` as both `.json` and `.md`. Audio (if enabled) goes to `output/audio/`.
+### Run a script directly
+
+```bash
+python menu.py --script scripts/taiwan_crisis.yaml
+```
+
+### Script format
+
+```yaml
+topic: "Should there be a binding international treaty regulating frontier AI?"
+rounds: 8
+time_limit_minutes: 20
+research: true
+podcast: true
+personas:
+  us: lobbyist          # Director James Harrington
+  china: economist      # Professor Zhang Yifei
+  judge: economist      # Dr. Marie Leclerc
+```
+
+Available personas:
+- **US:** `strategist` (default), `lobbyist`, `analyst`
+- **China:** `director` (default), `enterprise_rep`, `economist`
+- **EU:** `strategist` (default), `hawk`, `economist`
 
 ---
 
 ## Configuration
 
-Edit `config/settings.yaml` to tune:
+**`config/settings.yaml`** -- System settings:
+- TabbyAPI URL and auth
+- Model names, paths, generation params (temperature, top_p, max_tokens)
+- Debate settings (rounds, time limit, repetition threshold)
+- Research settings (DDG, Tavily API key, Jina)
 
-- TabbyAPI URL and auth key
-- Model names and paths
-- Generation parameters (temperature, max tokens)
-- Debate settings (rounds, time limit, window sizes)
-- Web research settings (Tavily API key, result count)
+**`config/personas.yaml`** -- Agent identities, beliefs, debate styles
 
-Edit `config/personas.yaml` to modify agent identities, beliefs, and rhetorical styles.
+**`tabbyAPI/config.yml`** -- TabbyAPI server config (`model_dir: models`)
 
 ---
 
-## Podcast (optional)
+## Podcast
 
-Install Fish Speech:
+Podcasts use **Edge TTS** (Microsoft's free neural voice API). No GPU needed, no API key.
 
-```bash
-git clone https://github.com/fishaudio/fish-speech
-.venv/bin/pip install -e fish-speech/
-```
+Default voices:
+- US: `en-US-GuyNeural` (male, authoritative)
+- China: `en-US-AndrewNeural` (male, different tone)
+- EU: `en-GB-SoniaNeural` (female, British)
 
-Record 10–30 second voice reference clips for each speaker, then:
+Override voices from the web dashboard or by passing voice names in the script config.
 
-```bash
-python main.py --topic "..." --podcast \
-  --voice-us voices/us_ref.wav \
-  --voice-china voices/china_ref.wav \
-  --voice-judge voices/judge_ref.wav
-```
-
-Without voice references, Fish Speech uses its default voice for all speakers.
+The podcast pipeline:
+1. LLM converts the debate transcript into a conversational dialogue script
+2. Edge TTS generates MP3 audio for each segment
+3. Segments are concatenated with a timing manifest for synced playback
 
 ---
 
@@ -192,17 +204,24 @@ Without voice references, Fish Speech uses its default voice for all speakers.
 
 ```
 .
-├── main.py                        # CLI entrypoint
-├── download_models.py             # HuggingFace EXL2 model downloader
-├── activate.sh                    # Activate virtualenv
+├── menu.py                        # Interactive CLI menu (auto-activates .venv)
+├── dashboard.py                   # Flask web dashboard
+├── static/
+│   └── index.html                 # Dashboard frontend
 ├── config/
 │   ├── settings.yaml              # System configuration
 │   └── personas.yaml              # Agent persona definitions
+├── scripts/                       # Pre-configured debate scenarios
+│   ├── lunar_base.yaml
+│   ├── taiwan_crisis.yaml
+│   ├── ai_regulation.yaml
+│   └── belt_and_road.yaml
 ├── src/
 │   ├── orchestrator.py            # Main 4-phase debate loop
-│   ├── tabby_client.py            # TabbyAPI HTTP client
+│   ├── tabby_client.py            # TabbyAPI HTTP client (SSE model loading)
+│   ├── live_status.py             # File-based cross-process debate tracking
 │   ├── agents/
-│   │   ├── base_agent.py          # Shared agent logic
+│   │   ├── base_agent.py          # Shared agent logic + tag parsing
 │   │   ├── us_agent.py            # US Delegation
 │   │   ├── china_agent.py         # China Delegation
 │   │   └── eu_judge.py            # EU Judge
@@ -214,26 +233,20 @@ Without voice references, Fish Speech uses its default voice for all speakers.
 │   ├── research/
 │   │   └── web_search.py          # DDG + Trafilatura + Jina + Tavily
 │   ├── evaluation/
-│   │   ├── quality_scorer.py      # LLM-as-judge per round
+│   │   ├── quality_scorer.py      # LLM-as-judge scoring (novelty/evidence/engagement/coherence)
 │   │   └── repetition_detector.py # Embedding similarity + early exit
 │   ├── rag/
 │   │   └── retriever.py           # ChromaDB RAG (10+ round debates)
 │   └── tts/
-│       └── podcast.py             # Fish Speech podcast pipeline
-├── tabbyAPI/                      # Git submodule — inference server
+│       └── podcast.py             # Edge TTS podcast pipeline
+├── tabbyAPI/                      # Git submodule -- inference server
+│   ├── config.yml                 # Pre-tuned for this project
+│   └── models/                    # EXL2 model directories
 ├── output/
 │   ├── transcripts/               # Debate transcripts (.json + .md)
-│   └── audio/                     # Podcast audio (.wav)
-└── Master Architecture - Integrated.md  # Full design reference
+│   └── audio/                     # Podcast audio (.mp3) + manifests
+└── requirements.txt
 ```
-
----
-
-## Design documents
-
-- `Master Architecture - Integrated.md` — Complete architecture reference (models, stack, context management, prompt engineering)
-- `AI Swarm - Improvements Report.md` — Detailed rationale for every technology choice
-- `TASKS.md` — Implementation status and remaining setup steps
 
 ---
 
@@ -242,9 +255,12 @@ Without voice references, Fish Speech uses its default voice for all speakers.
 | Component | Technology |
 |---|---|
 | Inference | ExLlamaV2 + TabbyAPI |
-| Quantization | EXL2 variable bitrate (3.5–4.5 bpw) |
-| Orchestration | Custom Python (~400 lines) |
-| Web search | DuckDuckGo + Trafilatura + Jina Reader + Tavily |
+| Quantization | EXL2 variable bitrate (3.5-4.0 bpw) |
+| Orchestration | Custom Python debate loop |
+| Web search | DuckDuckGo (`ddgs`) + Trafilatura + Jina Reader + Tavily |
 | Embeddings / RAG | sentence-transformers (all-MiniLM-L6-v2, CPU) + ChromaDB |
-| TTS | Fish Speech (Apache 2.0) |
-| KV cache | Q8 quantization (saves ~1–2 GB VRAM) |
+| TTS | Edge TTS (Microsoft free neural voices) |
+| Quality scoring | LLM-as-judge (novelty, evidence, engagement, coherence) |
+| Repetition detection | Cosine similarity on sentence embeddings |
+| Dashboard | Flask + vanilla JS with real-time polling |
+| KV cache | Q8 quantization (saves ~1-2 GB VRAM) |

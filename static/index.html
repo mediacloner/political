@@ -21,7 +21,7 @@ header h1 em{color:var(--bl);font-style:normal;}
 .dot-r{background:var(--rd);}
 
 .nav{display:flex;background:var(--bg2);border-bottom:1px solid var(--bd);padding:0 1.5rem;}
-.nav-tab{padding:.6rem 1.2rem;font-size:.82rem;cursor:pointer;color:var(--mu);border-bottom:2px solid transparent;margin-bottom:-1px;font-weight:600;}
+.nav-tab{padding:.6rem 1.2rem;font-size:.82rem;cursor:pointer;color:var(--mu);border-bottom:2px solid transparent;margin-bottom:-1px;font-weight:600;text-decoration:none;}
 .nav-tab.on{color:var(--tx);border-bottom-color:var(--bl);}
 .nav-tab:hover{color:var(--tx);}
 .page{display:none;padding:1.1rem 1.5rem;max-width:100%;margin:0 auto;}
@@ -133,10 +133,8 @@ button.sm:hover{border-color:var(--tx);color:var(--tx);}
 .st-done{color:var(--gn);}
 .st-err{color:var(--rd);}
 
-/* Transcript panel */
-.tsplit{display:grid;grid-template-columns:290px 1fr;min-height:400px;}
-.tlist{border-right:1px solid var(--bd);overflow-y:auto;max-height:700px;}
-.tview{padding:1.1rem 1.25rem;overflow-y:auto;max-height:700px;font-size:.8375rem;line-height:1.75;}
+/* Conversation selector */
+#conv-select{font-family:inherit;}
 
 /* Log */
 .log{background:#010409;border-radius:5px;padding:.65rem .75rem;font-family:'Monaco','Menlo','Consolas',monospace;font-size:.7rem;height:400px;overflow-y:auto;line-height:1.6;white-space:pre-wrap;word-break:break-word;}
@@ -152,15 +150,25 @@ button.sm:hover{border-color:var(--tx);color:var(--tx);}
 /* Audio */
 .player-wrap{background:var(--bg3);border:1px solid var(--bd);border-radius:7px;padding:.8rem;margin-bottom:1rem;}
 audio{width:100%;margin-bottom:.5rem;height:36px;}
-.seg{padding:.7rem .9rem;border-left:3px solid transparent;margin-bottom:0;cursor:pointer;transition:all .2s;opacity:.5;}
-.seg:hover{opacity:.8;background:var(--bg3);}
-.seg.active{opacity:1;border-left-color:var(--bl);background:rgba(88,166,255,.07);border-radius:0 6px 6px 0;}
+.seg-wrap{max-width:680px;margin:0 auto;}
+.seg{padding:.85rem 1rem;border-left:3px solid transparent;margin-bottom:0;cursor:pointer;transition:all .2s;}
+.seg:hover{background:var(--bg3);}
+.seg.active{border-left-color:var(--bl);background:rgba(88,166,255,.07);border-radius:0 6px 6px 0;}
 .seg.active.ag-us{border-left-color:var(--us);}
 .seg.active.ag-cn{border-left-color:var(--cn);}
 .seg.active.ag-ju{border-left-color:var(--ju);}
-.seg-hdr{display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem;}
-.seg-time{color:var(--mu);font-size:.75rem;font-family:monospace;min-width:3.5rem;}
-.seg-text{font-size:.95rem;color:#c9d1d9;line-height:1.7;}
+.seg-hdr{display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem;}
+.seg-time{color:var(--mu);font-size:.8rem;font-family:monospace;min-width:3.5rem;}
+/* Future: grey */
+.seg-text{font-size:1.2rem;color:var(--mu);line-height:1.85;}
+.seg-text .w{color:var(--mu);transition:color .15s;}
+/* Active without word data: whole text lights up */
+.seg.active .seg-text:not(:has(.w)){color:#e6edf3;}
+/* Active with word data: only spoken words light up */
+.seg.active .seg-text .w.spoken{color:#e6edf3;}
+/* Past: fully lit */
+.seg.past .seg-text{color:#e6edf3;}
+.seg.past .seg-text .w{color:#e6edf3;}
 .pod-form{background:var(--bg3);border:1px solid var(--bd);border-radius:6px;padding:.8rem;margin-bottom:.85rem;}
 .pod-form h4{font-size:.8rem;margin-bottom:.6rem;color:var(--mu);text-transform:uppercase;letter-spacing:.05em;}
 .pod-log{background:#010409;border-radius:4px;padding:.5rem .6rem;font-family:monospace;font-size:.68rem;height:80px;overflow-y:auto;margin-top:.5rem;}
@@ -168,6 +176,11 @@ audio{width:100%;margin-bottom:.5rem;height:36px;}
 .tab{padding:.45rem .8rem;font-size:.78rem;cursor:pointer;color:var(--mu);border-bottom:2px solid transparent;margin-bottom:-1px;}
 .tab.on{color:var(--tx);border-bottom-color:var(--bl);}
 .empty{text-align:center;padding:2rem;color:var(--mu);font-size:.8rem;}
+#scroll-top{position:fixed;bottom:1.5rem;right:1.5rem;width:44px;height:44px;border-radius:50%;
+  background:var(--bl);color:#0d1117;border:none;font-size:1.3rem;font-weight:700;cursor:pointer;
+  box-shadow:0 2px 8px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .2s;z-index:100;}
+#scroll-top.show{opacity:1;pointer-events:auto;}
+#scroll-top:hover{opacity:.85;}
 ::-webkit-scrollbar{width:5px;height:5px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px;}
@@ -188,10 +201,10 @@ audio{width:100%;margin-bottom:.5rem;height:36px;}
 </div>
 
 <div class="nav">
-  <div class="nav-tab on" onclick="showPage('live')">Live Debate</div>
-  <div class="nav-tab" onclick="showPage('new')">New Debate</div>
-  <div class="nav-tab" onclick="showPage('transcripts')">Transcripts</div>
-  <div class="nav-tab" onclick="showPage('log')">Raw Log</div>
+  <a class="nav-tab on" href="#live">Live Debate</a>
+  <a class="nav-tab" href="#new">New Debate</a>
+  <a class="nav-tab" href="#transcripts">Conversations</a>
+  <a class="nav-tab" href="#log">Raw Log</a>
 </div>
 
 <!-- PAGE: Live Debate -->
@@ -199,6 +212,7 @@ audio{width:100%;margin-bottom:.5rem;height:36px;}
   <div id="live-area">
     <div class="empty" id="live-empty">No debate running. Start one from <b>New Debate</b> or run a script from the CLI.</div>
   </div>
+  <button id="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Scroll to top">&#8679;</button>
 </div>
 
 <!-- PAGE: New Debate -->
@@ -231,13 +245,48 @@ audio{width:100%;margin-bottom:.5rem;height:36px;}
   </div>
 </div>
 
-<!-- PAGE: Transcripts -->
+<!-- PAGE: Conversations -->
 <div class="page" id="page-transcripts">
   <div class="card">
-    <div class="ch">Transcripts &amp; Podcast <button class="sm" onclick="loadTranscripts()">&#8635; Refresh</button></div>
-    <div class="tsplit">
-      <div class="tlist" id="tx-list"><div class="empty">Loading...</div></div>
-      <div class="tview" id="tx-view"><div class="empty">Select a transcript.</div></div>
+    <div class="ch">
+      <span>Conversations</span>
+      <div style="display:flex;align-items:center;gap:.6rem;">
+        <select id="conv-select" onchange="onConvSelect(this.value)"
+          style="background:var(--bg3);border:1px solid var(--bd);color:var(--tx);border-radius:4px;
+                 padding:.25rem .6rem;font-size:.78rem;min-width:320px;max-width:500px;">
+          <option value="">Select a conversation...</option>
+        </select>
+        <button class="sm" onclick="loadTranscripts()">&#8635;</button>
+      </div>
+    </div>
+    <div id="conv-body" style="min-height:460px;">
+      <div class="empty" id="conv-empty">Select a conversation above to view the debate and listen to the podcast.</div>
+      <div id="conv-content" style="display:none;">
+        <!-- header -->
+        <div id="conv-header" style="padding:1rem 1.25rem .3rem;"></div>
+        <!-- podcast player area -->
+        <div id="conv-player-wrap" style="display:none;padding:0 1.25rem .5rem;">
+          <div class="player-wrap" style="margin-bottom:0;">
+            <audio id="conv-audio" controls preload="metadata" style="width:100%;margin-bottom:.4rem;height:36px;"></audio>
+            <div style="display:flex;align-items:center;gap:.75rem;">
+              <span id="conv-dur" style="font-size:.75rem;color:var(--mu)"></span>
+              <a id="conv-dl" href="#" download style="font-size:.72rem">&#8659; Download</a>
+              <button class="sm" id="conv-regen" onclick="regenPodcast()" style="margin-left:auto;">&#8635; Regenerate</button>
+            </div>
+          </div>
+        </div>
+        <!-- no-podcast generate form -->
+        <div id="conv-no-pod" style="display:none;padding:0 1.25rem .5rem;"></div>
+        <!-- tabs + content panes -->
+        <div style="padding:0 1.25rem 1rem;">
+          <div class="tabs" id="conv-tabs" style="display:none;">
+            <div class="tab on" id="ctab-sync" onclick="convSwitchTab('sync')">&#9654; Synced Transcript</div>
+            <div class="tab" id="ctab-turns" onclick="convSwitchTab('turns')">Debate Turns</div>
+          </div>
+          <div id="cpane-sync" style="overflow-y:auto;max-height:560px;"></div>
+          <div id="cpane-turns" style="display:none;overflow-y:auto;max-height:560px;"></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -261,6 +310,21 @@ function showPage(id){
   const idx={live:0,new:1,transcripts:2,log:3}[id]||0;
   if(tabs[idx])tabs[idx].classList.add('on');
 }
+function navigateTo(id){
+  if(location.hash!=='#'+id)history.pushState(null,null,'#'+id);
+  showPage(id);
+}
+window.addEventListener('hashchange',()=>{
+  const id=(location.hash||'#live').slice(1);
+  showPage(id);
+});
+document.querySelector('.nav').addEventListener('click',e=>{
+  const tab=e.target.closest('.nav-tab');
+  if(!tab)return;
+  e.preventDefault();
+  const id=tab.getAttribute('href').slice(1);
+  navigateTo(id);
+});
 
 // ── Status polling ────────────────────────────────────────────────────────────
 let _webDebateActive=false, _statusHash='';
@@ -445,7 +509,7 @@ async function startDebate(){
     if(d.error){alert(d.error);return;}
     _webDebateActive=true;
     openStream(d.debate_id,topic);loadDebates();
-    showPage('log');
+    navigateTo('log');
   }finally{btn.disabled=false;btn.textContent='\u25B6 Start Debate';}
 }
 
@@ -487,41 +551,107 @@ function clf(t){
   if(t.trim())return 'ok';return '';
 }
 
-// ── Transcripts ───────────────────────────────────────────────────────────────
+// ── Conversations ─────────────────────────────────────────────────────────────
+let _txList=[];
 async function loadTranscripts(){
   try{
     const d=await fetch('/api/transcripts').then(r=>r.json());
-    const el=$('tx-list');
-    if(!d.transcripts.length){el.innerHTML='<div class="empty">No transcripts yet</div>';return;}
-    el.innerHTML=d.transcripts.map(t=>'<div class="ditem" onclick="viewTranscript('+JSON.stringify(t.filename)+')"><div class="dtopic">'+esc(t.topic)+'</div><div class="dmeta"><span>'+t.rounds+' rounds</span><span>'+(t.finish_reason||'-')+'</span><span>'+ago(t.mtime)+'</span></div></div>').join('');
+    _txList=d.transcripts||[];
+    const podChecks=await Promise.all(_txList.map(t=>
+      fetch('/api/podcast/for-transcript/'+t.filename).then(r=>r.json()).catch(()=>({podcast:null}))
+    ));
+    _txList.forEach((t,i)=>t._pod=podChecks[i].podcast);
+    const sel=$('conv-select');
+    const cur=sel.value;
+    sel.innerHTML='<option value="">Select a conversation...</option>'+
+      _txList.map(t=>{
+        const hasPod=t._pod&&t._pod.audio_exists;
+        const icon=hasPod?'\u{1F3A7} ':'';
+        return '<option value="'+esc(t.filename)+'">'+icon+esc(t.topic)+' \u2014 '+t.rounds+'r \u00B7 '+(t.finish_reason||'in progress')+' \u00B7 '+ago(t.mtime)+'</option>';
+      }).join('');
+    if(cur)sel.value=cur;
   }catch{}
 }
 
 let _audioEl=null,_manifest=null,_txFilename=null;
-async function viewTranscript(fname){
-  _txFilename=fname;
-  const [tx,pod]=await Promise.all([fetch('/api/transcripts/'+fname).then(r=>r.json()),fetch('/api/podcast/for-transcript/'+fname).then(r=>r.json())]);
-  renderTranscriptView(tx,pod.podcast,fname);
+
+function onConvSelect(fname){
+  if(!fname){
+    $('conv-empty').style.display='';
+    $('conv-content').style.display='none';
+    _audioEl=null;_manifest=null;_txFilename=null;
+    return;
+  }
+  viewTranscript(fname);
 }
 
-function renderTranscriptView(tx,podcast,fname){
-  const v=$('tx-view');
-  let html='<h3 style="font-size:.95rem;margin-bottom:.3rem">'+esc(tx.topic)+'</h3>';
-  html+='<div style="font-size:.72rem;color:var(--mu);margin-bottom:.9rem">'+tx.round_num+' rounds &middot; '+(tx.finish_reason||'in progress')+'</div>';
+async function viewTranscript(fname){
+  _txFilename=fname;
+  $('conv-select').value=fname;
+  const [tx,pod]=await Promise.all([fetch('/api/transcripts/'+fname).then(r=>r.json()),fetch('/api/podcast/for-transcript/'+fname).then(r=>r.json())]);
+  renderConversation(tx,pod.podcast,fname);
+}
+
+function renderConversation(tx,podcast,fname){
+  $('conv-empty').style.display='none';
+  $('conv-content').style.display='';
+
+  // Header
+  $('conv-header').innerHTML='<h3 style="font-size:1rem;margin-bottom:.2rem;">'+esc(tx.topic)+'</h3>'+
+    '<div style="font-size:.75rem;color:var(--mu);margin-bottom:.4rem;">'+tx.round_num+' rounds &middot; '+(tx.finish_reason||'in progress')+'</div>';
 
   if(podcast&&podcast.audio_exists){
-    html+='<div class="player-wrap" id="player-wrap"><audio id="audio-el" controls preload="metadata"><source src="/api/audio/'+esc(podcast.audio_file)+'" type="audio/mpeg"></audio>';
-    html+='<div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem;"><span style="font-size:.75rem;color:var(--mu)">\u25B6 '+fmt(podcast.total_duration)+'</span><a href="/api/audio/'+esc(podcast.audio_file)+'" download style="font-size:.72rem">\u21D9 Download</a></div></div>';
-    html+='<div class="tabs"><div class="tab on" id="tab-sync" onclick="switchTab(\'sync\')">\u25B6 Synced</div><div class="tab" id="tab-turns" onclick="switchTab(\'turns\')">Turns</div></div>';
-    html+='<div id="pane-sync">'+renderSegments(podcast.segments)+'</div>';
-    html+='<div id="pane-turns" style="display:none">'+renderTxTurns(tx)+'</div>';
-  }else{
-    html+=renderPodcastForm(fname,podcast);
-    html+=renderTxTurns(tx);
+    // Show player
+    $('conv-player-wrap').style.display='';
+    $('conv-no-pod').style.display='none';
+    const audio=$('conv-audio');
+    audio.src='/api/audio/'+encodeURIComponent(podcast.audio_file);
+    $('conv-dur').innerHTML='\u25B6 '+fmt(podcast.total_duration);
+    $('conv-dl').href='/api/audio/'+encodeURIComponent(podcast.audio_file);
+    // Tabs: synced transcript + debate turns
+    $('conv-tabs').style.display='';
+    $('cpane-sync').innerHTML=renderSegments(podcast.segments);
+    $('cpane-sync').style.display='';
+    $('cpane-turns').innerHTML=renderTxTurns(tx);
+    $('cpane-turns').style.display='none';
+    $('ctab-sync').className='tab on';
+    $('ctab-turns').className='tab';
+    _audioEl=audio;
+    _manifest=podcast.segments;
+    _audioEl.removeEventListener('timeupdate',syncHighlight);
+    _audioEl.addEventListener('timeupdate',syncHighlight);
+    _audioEl.removeEventListener('play',startWordSync);
+    _audioEl.addEventListener('play',startWordSync);
+    _audioEl.removeEventListener('seeked',syncHighlight);
+    _audioEl.addEventListener('seeked',syncHighlight);
+  } else {
+    // No podcast: show generate form + debate turns directly
+    $('conv-player-wrap').style.display='none';
+    $('conv-no-pod').style.display='';
+    $('conv-no-pod').innerHTML=renderPodcastForm(fname,podcast);
+    $('conv-tabs').style.display='none';
+    $('cpane-sync').innerHTML='';
+    $('cpane-sync').style.display='none';
+    $('cpane-turns').innerHTML=renderTxTurns(tx);
+    $('cpane-turns').style.display='';
+    _audioEl=null;_manifest=null;
   }
+}
 
-  v.innerHTML=html;
-  if(podcast&&podcast.audio_exists){_audioEl=document.getElementById('audio-el');_manifest=podcast.segments;_audioEl.addEventListener('timeupdate',syncHighlight);}
+function convSwitchTab(name){
+  $('ctab-sync').className='tab'+(name==='sync'?' on':'');
+  $('ctab-turns').className='tab'+(name==='turns'?' on':'');
+  $('cpane-sync').style.display=name==='sync'?'':'none';
+  $('cpane-turns').style.display=name==='turns'?'':'none';
+}
+
+function regenPodcast(){
+  if(!_txFilename)return;
+  $('conv-player-wrap').style.display='none';
+  $('conv-no-pod').style.display='';
+  $('conv-no-pod').innerHTML=renderPodcastForm(_txFilename,null);
+  $('conv-tabs').style.display='none';
+  _audioEl=null;_manifest=null;
 }
 
 function renderTxTurns(tx){
@@ -533,7 +663,15 @@ function renderTxTurns(tx){
 function renderSegments(segs){
   if(!segs||!segs.length)return '<div class="empty">No segments</div>';
   const agCls={us:'ag-us',china:'ag-cn',judge:'ag-ju'};
-  return segs.map((s,i)=>'<div class="seg '+(agCls[s.agent]||'')+'" id="seg-'+i+'" data-start="'+s.start+'" data-end="'+s.end+'" onclick="seekAudio('+s.start+')"><div class="seg-hdr"><span class="badge '+(BCLS[s.agent]||'')+'">'+(LBL[s.agent]||s.agent)+'</span><span class="seg-time">'+fmt(s.start)+'</span></div><div class="seg-text">'+esc(s.text)+'</div></div>').join('');
+  return '<div class="seg-wrap">'+segs.map((s,i)=>{
+    let body;
+    if(s.words&&s.words.length){
+      body=s.words.map(w=>'<span class="w" data-ws="'+w.start+'" data-we="'+w.end+'">'+esc(w.word)+'</span>').join(' ');
+    }else{
+      body=esc(s.text);
+    }
+    return '<div class="seg '+(agCls[s.agent]||'')+'" id="seg-'+i+'" data-start="'+s.start+'" data-end="'+s.end+'" onclick="seekAudio('+s.start+')"><div class="seg-hdr"><span class="badge '+(BCLS[s.agent]||'')+'">'+(LBL[s.agent]||s.agent)+'</span><span class="seg-time">'+fmt(s.start)+'</span></div><div class="seg-text">'+body+'</div></div>';
+  }).join('')+'</div>';
 }
 
 function renderPodcastForm(fname,podcast){
@@ -541,8 +679,28 @@ function renderPodcastForm(fname,podcast){
   return '<div class="pod-form" id="pod-form"><h4>'+(hs?'Podcast script saved - generate audio':'Generate Podcast')+'</h4><div style="font-size:.75rem;color:var(--mu);margin-bottom:.6rem">Optional: override Edge TTS voice names (e.g. en-US-GuyNeural)</div><div class="row2" style="margin-bottom:.5rem"><div class="fg"><label>US voice</label><input type="text" id="pv-us" placeholder="en-US-GuyNeural"></div><div class="fg"><label>China voice</label><input type="text" id="pv-cn" placeholder="en-US-AndrewNeural"></div></div><div class="fg"><label>EU voice</label><input type="text" id="pv-ju" placeholder="en-GB-SoniaNeural"></div><button class="pri" id="pod-btn" onclick="generatePodcast(\''+esc(fname)+'\')">\u25B6 Generate Podcast</button><div class="pod-log" id="pod-log"></div></div>';
 }
 
-function switchTab(w){const s=$('tab-sync'),t=$('tab-turns'),ps=$('pane-sync'),pt=$('pane-turns');if(!s||!t)return;s.className='tab'+(w==='sync'?' on':'');t.className='tab'+(w==='turns'?' on':'');ps.style.display=w==='sync'?'':'none';pt.style.display=w==='turns'?'':'none';}
-function syncHighlight(){if(!_audioEl||!_manifest)return;const t=_audioEl.currentTime;_manifest.forEach((s,i)=>{const el=document.getElementById('seg-'+i);if(!el)return;const wasActive=el.classList.contains('active');const isActive=t>=s.start&&t<s.end;el.classList.toggle('active',isActive);if(isActive&&!wasActive)el.scrollIntoView({behavior:'smooth',block:'center'});});}
+let _syncRAF=null;
+function syncHighlight(){
+  if(!_audioEl||!_manifest)return;
+  const t=_audioEl.currentTime;
+  _manifest.forEach((s,i)=>{
+    const el=document.getElementById('seg-'+i);if(!el)return;
+    const wasActive=el.classList.contains('active');
+    const isActive=t>=s.start&&t<s.end;
+    const isPast=t>=s.end;
+    el.classList.toggle('active',isActive);
+    el.classList.toggle('past',isPast);
+    if(isActive&&!wasActive)el.scrollIntoView({behavior:'smooth',block:'center'});
+  });
+  document.querySelectorAll('.seg-text .w').forEach(w=>{
+    w.classList.toggle('spoken',t>=parseFloat(w.dataset.ws));
+  });
+}
+function startWordSync(){
+  if(_syncRAF)cancelAnimationFrame(_syncRAF);
+  function tick(){if(!_audioEl||_audioEl.paused){_syncRAF=null;return;}syncHighlight();_syncRAF=requestAnimationFrame(tick);}
+  _syncRAF=requestAnimationFrame(tick);
+}
 function seekAudio(t){if(_audioEl){_audioEl.currentTime=t;_audioEl.play();}}
 function fmt(s){const m=Math.floor(s/60),sec=Math.floor(s%60);return m+':'+(sec<10?'0':'')+sec;}
 
@@ -553,7 +711,7 @@ async function generatePodcast(fname){
   const d=await fetch('/api/podcast/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(params)}).then(r=>r.json());
   if(d.error){alert(d.error);btn.disabled=false;btn.textContent='\u25B6 Generate Podcast';return;}
   const es=new EventSource('/api/podcast/'+d.job_id+'/stream');
-  es.onmessage=e=>{const ev=JSON.parse(e.data);if(ev.done){es.close();btn.disabled=false;btn.textContent='\u25B6 Generate Podcast';if(_txFilename)viewTranscript(_txFilename);return;}if(ev.text){const l=document.createElement('div');l.textContent=ev.text;log.appendChild(l);log.scrollTop=log.scrollHeight;}};
+  es.onmessage=e=>{const ev=JSON.parse(e.data);if(ev.done){es.close();btn.disabled=false;btn.textContent='\u25B6 Generate Podcast';loadTranscripts();if(_txFilename)viewTranscript(_txFilename);return;}if(ev.text){const l=document.createElement('div');l.textContent=ev.text;log.appendChild(l);log.scrollTop=log.scrollHeight;}};
   es.onerror=()=>{es.close();btn.disabled=false;btn.textContent='\u25B6 Generate Podcast';};
 }
 
@@ -561,7 +719,14 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
 function ago(ts){const s=Date.now()/1000-ts;if(s<60)return 'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
 function fmtQ(q){if(!q)return '';return Object.entries(q).map(([k,v])=>k[0].toUpperCase()+':'+v).join(' ');}
 
+// ── Scroll to top button ──────────────────────────────────────────────────────
+window.addEventListener('scroll',()=>{
+  const btn=$('scroll-top');
+  if(btn)btn.classList.toggle('show',window.scrollY>300);
+});
+
 // ── Init ──────────────────────────────────────────────────────────────────────
+showPage((location.hash||'#live').slice(1));
 checkStatus();loadTranscripts();loadDebates();pollLiveDebate();
 setInterval(checkStatus,4000);
 setInterval(()=>{loadDebates();pollLiveDebate();},3000);

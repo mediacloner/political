@@ -286,6 +286,10 @@ def run_debate(skip_research=False, quick=False):
     if not quick:
         podcast = ask_yn("Generate podcast?", "n")
 
+    dashboard = False
+    if not quick:
+        dashboard = ask_yn("Launch web dashboard?", "y")
+
     if not ensure_tabbyapi():
         return
 
@@ -293,6 +297,15 @@ def run_debate(skip_research=False, quick=False):
     if skip_research:
         config = copy.deepcopy(config)
         config["research"]["enabled"] = False
+
+    # Start dashboard in background if requested
+    dash_proc = None
+    if dashboard:
+        port = 8000
+        dash_proc = subprocess.Popen(
+            [_project_python(), str(PROJECT_DIR / "dashboard.py"), "--port", str(port)],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        print(f"  {GRN}Dashboard →  http://127.0.0.1:{port}{R}")
 
     print(f"\n  {GRN}Starting: {topic}{R}\n")
     try:
@@ -306,6 +319,11 @@ def run_debate(skip_research=False, quick=False):
         info("Start TabbyAPI first with [t]")
     except KeyboardInterrupt:
         print(f"\n  {YLW}Interrupted{R}")
+    finally:
+        if dash_proc:
+            dash_proc.terminate()
+            dash_proc.wait(timeout=5)
+            print(f"  {DIM}Dashboard stopped{R}")
 
 
 def list_transcripts(show=True):
@@ -394,6 +412,11 @@ def generate_podcast():
                          api_key=config["tabbyapi"].get("api_key", ""))
     state = DebateState.from_dict(d)
     print(f"\n  {GRN}Generating podcast…{R}\n")
+    # Load judge model for script generation
+    judge_cfg = config["models"]["judge"]
+    client.swap_model(model_name=judge_cfg["name"],
+                      model_path=judge_cfg["path"],
+                      max_seq_len=judge_cfg["max_seq_len"])
     try:
         result = PodcastProducer(config, personas).produce(
             state, client, voice_refs or None, source_transcript=f.name)
@@ -499,6 +522,39 @@ def run_script():
         print(f"\n  {YLW}Interrupted{R}")
 
 
+def stop_all():
+    """Kill all TabbyAPI and dashboard processes."""
+    import signal
+    print(f"\n{B}Stopping all processes…{R}\n")
+    killed = 0
+    for name, pattern in [
+        ("TabbyAPI",  "tabbyAPI/start.py"),
+        ("Dashboard", "dashboard.py"),
+    ]:
+        try:
+            result = subprocess.run(
+                ["pgrep", "-f", pattern],
+                capture_output=True, text=True)
+            pids = [int(p) for p in result.stdout.strip().split() if p]
+            # Exclude our own process
+            pids = [p for p in pids if p != os.getpid()]
+            for pid in pids:
+                try:
+                    os.kill(pid, signal.SIGTERM)
+                    ok(f"{name} (PID {pid}) stopped")
+                    killed += 1
+                except ProcessLookupError:
+                    pass
+            if not pids:
+                print(f"  {DIM}{name}: not running{R}")
+        except Exception as e:
+            err(f"{name}: {e}")
+    if killed:
+        ok(f"\n  {killed} process(es) stopped")
+    else:
+        info("Nothing was running")
+
+
 def launch_dashboard():
     if not _ensure_project_venv():
         return
@@ -529,6 +585,7 @@ MENU = [
     ("8", "Generate podcast from transcript",       generate_podcast),
     (None, None, None),
     ("9", "Launch web dashboard",                   launch_dashboard),
+    ("0", f"Stop all        {DIM}kill TabbyAPI + dashboard{R}", stop_all),
     ("q", "Quit",                                   None),
 ]
 

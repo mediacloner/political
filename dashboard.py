@@ -120,6 +120,11 @@ def _run_podcast(job_id, tx_filename, voice_refs):
         state = DebateState.from_dict(json.loads(tx_path.read_text()))
         client = TabbyClient(base_url=config["tabbyapi"]["url"],
                              api_key=config["tabbyapi"].get("api_key", ""))
+        # Load judge model for script generation
+        judge_cfg = config["models"]["judge"]
+        client.swap_model(model_name=judge_cfg["name"],
+                          model_path=judge_cfg["path"],
+                          max_seq_len=judge_cfg["max_seq_len"])
         result = PodcastProducer(config, personas).produce(
             state, client, voice_refs or None, source_transcript=tx_filename)
         info["result"] = result.name if result else None
@@ -439,16 +444,22 @@ audio{width:100%;margin-bottom:.5rem;height:36px;}
 audio::-webkit-media-controls-panel{background:var(--bg3);}
 
 /* synced segments */
-.seg{padding:.55rem .7rem;border-left:3px solid transparent;margin-bottom:.5rem;
-     border-radius:0 5px 5px 0;cursor:pointer;transition:background .15s,border-color .15s;}
+.seg-wrap{max-width:680px;margin:0 auto;}
+.seg{padding:.85rem 1rem;border-left:3px solid transparent;margin-bottom:0;
+     cursor:pointer;transition:all .2s;}
 .seg:hover{background:var(--bg3);}
-.seg.active{border-left-color:var(--bl);background:rgba(88,166,255,.07);}
+.seg.active{border-left-color:var(--bl);background:rgba(88,166,255,.07);border-radius:0 6px 6px 0;}
 .seg.active.ag-us{border-left-color:var(--bl);}
 .seg.active.ag-cn{border-left-color:var(--or);}
 .seg.active.ag-ju{border-left-color:#ffd700;}
-.seg-hdr{display:flex;align-items:center;gap:.4rem;margin-bottom:.25rem;}
-.seg-time{color:var(--mu);font-size:.7rem;font-family:monospace;}
-.seg-text{font-size:.8125rem;color:#c9d1d9;line-height:1.6;}
+.seg-hdr{display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem;}
+.seg-time{color:var(--mu);font-size:.8rem;font-family:monospace;min-width:3.5rem;}
+.seg-text{font-size:1.2rem;color:var(--mu);line-height:1.85;}
+.seg-text .w{color:var(--mu);transition:color .15s;}
+.seg.active .seg-text:not(:has(.w)){color:#e6edf3;}
+.seg.active .seg-text .w.spoken{color:#e6edf3;}
+.seg.past .seg-text{color:#e6edf3;}
+.seg.past .seg-text .w{color:#e6edf3;}
 
 /* podcast controls */
 .pod-form{background:var(--bg3);border:1px solid var(--bd);border-radius:6px;padding:.8rem;margin-bottom:.85rem;}
@@ -548,12 +559,43 @@ audio::-webkit-media-controls-panel{background:var(--bg3);}
     </div>
   </div>
 
-  <!-- Bottom: transcripts + podcast player -->
+  <!-- Bottom: conversation browser + podcast player -->
   <div class="card span2">
-    <div class="ch">Transcripts &amp; Podcast <button class="sm" onclick="loadTranscripts()">&#8635; Refresh</button></div>
-    <div class="tsplit">
-      <div class="tlist" id="tx-list"><div class="empty">Loading…</div></div>
-      <div class="tview" id="tx-view"><div class="empty">Select a transcript.</div></div>
+    <div class="ch">
+      <span>Conversations</span>
+      <div style="display:flex;align-items:center;gap:.6rem;">
+        <select id="conv-select" onchange="onConvSelect(this.value)" style="background:var(--bg3);border:1px solid var(--bd);color:var(--tx);border-radius:4px;padding:.2rem .5rem;font-size:.72rem;min-width:280px;max-width:420px;">
+          <option value="">Select a conversation…</option>
+        </select>
+        <button class="sm" onclick="loadTranscripts()">&#8635;</button>
+      </div>
+    </div>
+    <div id="conv-body" style="min-height:420px;">
+      <div class="empty" id="conv-empty">Select a conversation above to view the debate and listen to the podcast.</div>
+      <div id="conv-player" style="display:none;">
+        <!-- podcast player area -->
+        <div id="conv-player-wrap" style="display:none;padding:1rem 1.25rem .5rem;">
+          <div class="player-wrap" style="margin-bottom:0">
+            <audio id="conv-audio" controls preload="metadata" style="width:100%;margin-bottom:.4rem;height:36px;"></audio>
+            <div style="display:flex;align-items:center;gap:.75rem;">
+              <span id="conv-dur" style="font-size:.75rem;color:var(--mu)"></span>
+              <a id="conv-dl" href="#" download style="font-size:.72rem">&#8659; Download</a>
+              <button class="sm" id="conv-gen-again" onclick="regenPodcast()" style="margin-left:auto;">&#8635; Regenerate</button>
+            </div>
+          </div>
+        </div>
+        <!-- no-podcast form -->
+        <div id="conv-no-pod" style="display:none;padding:1rem 1.25rem .5rem;"></div>
+        <!-- tabs + content -->
+        <div style="padding:0 1.25rem;">
+          <div class="tabs" id="conv-tabs" style="display:none;">
+            <div class="tab on" id="ctab-sync" onclick="convSwitchTab('sync')">&#9654; Synced Transcript</div>
+            <div class="tab" id="ctab-turns" onclick="convSwitchTab('turns')">Debate Turns</div>
+          </div>
+          <div id="cpane-sync" style="overflow-y:auto;max-height:480px;padding-bottom:1rem;"></div>
+          <div id="cpane-turns" style="display:none;overflow-y:auto;max-height:480px;padding-bottom:1rem;"></div>
+        </div>
+      </div>
     </div>
   </div>
 </main>
@@ -666,71 +708,108 @@ function clf(t){
   if(t.trim())return 'ok';return '';
 }
 
-// ── Transcripts ───────────────────────────────────────────────────────────────
+// ── Transcripts / Conversations ───────────────────────────────────────────────
+let _txList=[];
 async function loadTranscripts(){
   const d=await fetch('/api/transcripts').then(r=>r.json());
-  const el=$('tx-list');
-  if(!d.transcripts.length){el.innerHTML='<div class="empty">No transcripts yet</div>';return;}
-  el.innerHTML=d.transcripts.map(t=>`
-    <div class="ditem" onclick="viewTranscript(${JSON.stringify(t.filename)})">
-      <div class="dtopic">${esc(t.topic)}</div>
-      <div class="dmeta"><span>${t.rounds} rounds</span><span>${t.finish_reason||'—'}</span><span>${ago(t.mtime)}</span></div>
-    </div>`).join('');
+  _txList=d.transcripts||[];
+  // Check podcast availability for each transcript
+  const podChecks=await Promise.all(_txList.map(t=>
+    fetch('/api/podcast/for-transcript/'+t.filename).then(r=>r.json()).catch(()=>({podcast:null}))
+  ));
+  _txList.forEach((t,i)=>t._pod=podChecks[i].podcast);
+  const sel=$('conv-select');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">Select a conversation…</option>'+
+    _txList.map(t=>{
+      const pod=t._pod&&t._pod.audio_exists;
+      const icon=pod?'\u{1F3A7} ':'';
+      return `<option value="${esc(t.filename)}">${icon}${esc(t.topic)} — ${t.rounds}r · ${t.finish_reason||'in progress'} · ${ago(t.mtime)}</option>`;
+    }).join('');
+  if(cur)sel.value=cur;
 }
 
-// ── Transcript viewer ─────────────────────────────────────────────────────────
+// ── Conversation viewer ───────────────────────────────────────────────────────
 let _audioEl=null, _manifest=null, _txFilename=null;
+
+function onConvSelect(fname){
+  if(!fname){
+    $('conv-empty').style.display='';
+    $('conv-player').style.display='none';
+    _audioEl=null;_manifest=null;_txFilename=null;
+    return;
+  }
+  viewTranscript(fname);
+}
 
 async function viewTranscript(fname){
   _txFilename=fname;
+  $('conv-select').value=fname;
   const [tx,pod]=await Promise.all([
     fetch('/api/transcripts/'+fname).then(r=>r.json()),
     fetch('/api/podcast/for-transcript/'+fname).then(r=>r.json()),
   ]);
-  renderTranscriptView(tx,pod.podcast,fname);
+  renderConversation(tx,pod.podcast,fname);
 }
 
-function renderTranscriptView(tx,podcast,fname){
-  const v=$('tx-view');
-  const lbl={us:'🇺🇸 US',china:'🇨🇳 China',judge:'🇪🇺 Judge'};
+function renderConversation(tx,podcast,fname){
+  const lbl={us:'\u{1F1FA}\u{1F1F8} US',china:'\u{1F1E8}\u{1F1F3} China',judge:'\u{1F1EA}\u{1F1FA} Judge'};
   const bcls={us:'b-us',china:'b-cn',judge:'b-ju'};
 
-  let html=`<h3 style="font-size:.95rem;margin-bottom:.3rem">${esc(tx.topic)}</h3>
-    <div style="font-size:.72rem;color:var(--mu);margin-bottom:.9rem">
-      ${tx.round_num} rounds &middot; ${tx.finish_reason||'in progress'}
-    </div>`;
+  $('conv-empty').style.display='none';
+  $('conv-player').style.display='';
 
-  // Podcast area
+  // Audio player
   if(podcast && podcast.audio_exists){
-    html+=`<div class="player-wrap" id="player-wrap">
-      <audio id="audio-el" controls preload="metadata">
-        <source src="/api/audio/${esc(podcast.audio_file)}" type="audio/wav">
-      </audio>
-      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem;">
-        <span style="font-size:.75rem;color:var(--mu)">&#9654; ${fmt(podcast.total_duration)}</span>
-        <a href="/api/audio/${esc(podcast.audio_file)}" download style="font-size:.72rem">&#8659; Download</a>
-      </div>
-    </div>
-    <div class="tabs">
-      <div class="tab on" id="tab-sync" onclick="switchTab('sync')">&#9654; Synced Transcript</div>
-      <div class="tab" id="tab-turns" onclick="switchTab('turns')">Debate Turns</div>
-    </div>
-    <div id="pane-sync">${renderSegments(podcast.segments)}</div>
-    <div id="pane-turns" style="display:none">${renderTurns(tx.turns,lbl,bcls,tx.verdict)}</div>`;
-  } else {
-    // No podcast: show generate form + debate turns
-    html+=renderPodcastForm(fname,podcast);
-    html+=renderTurns(tx.turns,lbl,bcls,tx.verdict);
-  }
-
-  v.innerHTML=html;
-
-  // Wire up audio player sync
-  if(podcast && podcast.audio_exists){
-    _audioEl=document.getElementById('audio-el');
+    $('conv-player-wrap').style.display='';
+    $('conv-no-pod').style.display='none';
+    const audio=$('conv-audio');
+    audio.src='/api/audio/'+encodeURIComponent(podcast.audio_file);
+    $('conv-dur').innerHTML='&#9654; '+fmt(podcast.total_duration);
+    $('conv-dl').href='/api/audio/'+encodeURIComponent(podcast.audio_file);
+    $('conv-tabs').style.display='';
+    $('cpane-sync').innerHTML=renderSegments(podcast.segments);
+    $('cpane-sync').style.display='';
+    $('cpane-turns').innerHTML=renderTurns(tx.turns,lbl,bcls,tx.verdict);
+    $('cpane-turns').style.display='none';
+    $('ctab-sync').className='tab on';
+    $('ctab-turns').className='tab';
+    _audioEl=audio;
     _manifest=podcast.segments;
+    _audioEl.removeEventListener('timeupdate',syncHighlight);
     _audioEl.addEventListener('timeupdate',syncHighlight);
+    _audioEl.removeEventListener('play',startWordSync);
+    _audioEl.addEventListener('play',startWordSync);
+    _audioEl.removeEventListener('seeked',syncHighlight);
+    _audioEl.addEventListener('seeked',syncHighlight);
+  } else {
+    $('conv-player-wrap').style.display='none';
+    $('conv-no-pod').style.display='';
+    $('conv-no-pod').innerHTML=renderPodcastForm(fname,podcast);
+    $('conv-tabs').style.display='none';
+    $('cpane-sync').innerHTML='';
+    $('cpane-sync').style.display='none';
+    $('cpane-turns').innerHTML=`<div style="padding-top:.5rem">${renderTurns(tx.turns,lbl,bcls,tx.verdict)}</div>`;
+    $('cpane-turns').style.display='';
+    _audioEl=null;_manifest=null;
   }
+}
+
+function convSwitchTab(name){
+  $('ctab-sync').className='tab'+(name==='sync'?' on':'');
+  $('ctab-turns').className='tab'+(name==='turns'?' on':'');
+  $('cpane-sync').style.display=name==='sync'?'':'none';
+  $('cpane-turns').style.display=name==='turns'?'':'none';
+}
+
+function regenPodcast(){
+  if(!_txFilename)return;
+  // Switch to generate form view
+  $('conv-player-wrap').style.display='none';
+  $('conv-no-pod').style.display='';
+  $('conv-no-pod').innerHTML=renderPodcastForm(_txFilename,null);
+  $('conv-tabs').style.display='none';
+  _audioEl=null;_manifest=null;
 }
 
 function renderSegments(segs){
@@ -738,15 +817,19 @@ function renderSegments(segs){
   const agCls={us:'ag-us',china:'ag-cn',judge:'ag-ju'};
   const lbl={us:'🇺🇸 US',china:'🇨🇳 China',judge:'🇪🇺 Judge'};
   const bcls={us:'b-us',china:'b-cn',judge:'b-ju'};
-  return segs.map((s,i)=>`
-    <div class="seg ${agCls[s.agent]||''}" id="seg-${i}"
+  return '<div class="seg-wrap">'+segs.map((s,i)=>{
+    let body;
+    if(s.words&&s.words.length){
+      body=s.words.map(w=>`<span class="w" data-ws="${w.start}" data-we="${w.end}">${esc(w.word)}</span>`).join(' ');
+    }else{body=esc(s.text);}
+    return `<div class="seg ${agCls[s.agent]||''}" id="seg-${i}"
          data-start="${s.start}" data-end="${s.end}" onclick="seekAudio(${s.start})">
       <div class="seg-hdr">
         <span class="badge ${bcls[s.agent]||''}">${lbl[s.agent]||s.agent}</span>
         <span class="seg-time">${fmt(s.start)}</span>
       </div>
-      <div class="seg-text">${esc(s.text)}</div>
-    </div>`).join('');
+      <div class="seg-text">${body}</div>
+    </div>`;}).join('')+'</div>';
 }
 
 function renderResearch(sources){
@@ -793,27 +876,30 @@ function renderPodcastForm(fname,podcast){
   </div>`;
 }
 
-// ── Tab switching ─────────────────────────────────────────────────────────────
-function switchTab(name){
-  $('tab-sync').className='tab'+(name==='sync'?' on':'');
-  $('tab-turns').className='tab'+(name==='turns'?' on':'');
-  $('pane-sync').style.display=name==='sync'?'':'none';
-  $('pane-turns').style.display=name==='turns'?'':'none';
-}
-
 // ── Audio sync ────────────────────────────────────────────────────────────────
+let _syncRAF=null;
 function syncHighlight(){
   if(!_audioEl||!_manifest)return;
   const t=_audioEl.currentTime;
-  let active=null;
-  document.querySelectorAll('.seg').forEach(el=>{
-    const on=t>=parseFloat(el.dataset.start)&&t<parseFloat(el.dataset.end);
-    el.classList.toggle('active',on);
-    if(on)active=el;
+  _manifest.forEach((s,i)=>{
+    const el=document.getElementById('seg-'+i);if(!el)return;
+    const wasActive=el.classList.contains('active');
+    const isActive=t>=s.start&&t<s.end;
+    const isPast=t>=s.end;
+    el.classList.toggle('active',isActive);
+    el.classList.toggle('past',isPast);
+    if(isActive&&!wasActive)el.scrollIntoView({behavior:'smooth',block:'nearest'});
   });
-  if(active)active.scrollIntoView({behavior:'smooth',block:'nearest'});
+  document.querySelectorAll('.seg-text .w').forEach(w=>{
+    w.classList.toggle('spoken',t>=parseFloat(w.dataset.ws));
+  });
 }
-function seekAudio(t){if(_audioEl)_audioEl.currentTime=t;}
+function startWordSync(){
+  if(_syncRAF)cancelAnimationFrame(_syncRAF);
+  function tick(){if(!_audioEl||_audioEl.paused){_syncRAF=null;return;}syncHighlight();_syncRAF=requestAnimationFrame(tick);}
+  _syncRAF=requestAnimationFrame(tick);
+}
+function seekAudio(t){if(_audioEl){_audioEl.currentTime=t;syncHighlight();}}
 function fmt(s){const m=Math.floor(s/60);return m+':'+String(Math.floor(s%60)).padStart(2,'0');}
 
 // ── Podcast generation ────────────────────────────────────────────────────────
@@ -837,18 +923,19 @@ async function generatePodcast(fname){
     if(msg.done){
       es.close();
       if(msg.result){
-        // Reload view with player
+        // Reload conversation view with player + update dropdown
+        loadTranscripts();
         viewTranscript(_txFilename);
       } else {
-        logEl.textContent+='[done — Fish Speech not installed, script saved only]';
-        btn.disabled=false;btn.textContent='▶ Generate Podcast';
+        logEl.textContent+='[done — audio generation failed, script saved only]';
+        btn.disabled=false;btn.textContent='\u25B6 Generate Podcast';
       }
       return;
     }
     logEl.textContent+=msg.text+'\n';
     logEl.scrollTop=logEl.scrollHeight;
   };
-  es.onerror=()=>{es.close();btn.disabled=false;btn.textContent='▶ Generate Podcast';};
+  es.onerror=()=>{es.close();btn.disabled=false;btn.textContent='\u25B6 Generate Podcast';};
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
